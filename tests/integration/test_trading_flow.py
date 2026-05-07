@@ -1,7 +1,7 @@
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 
-from adapters.storage.file_storage_adapter import FileStorageAdapter
+from adapters.data.file_storage_adapter import FileStorageAdapter
 from adapters.data.data_loader import CsvDataLoader
 
 from domain.account import Account
@@ -79,7 +79,7 @@ def test_full_trading_flow(engine):
 
     bus.publish(
         MarketTickEvent(
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             index=clock.current_index
         )
     )
@@ -89,7 +89,7 @@ def test_full_trading_flow(engine):
     # --- 2. BUY ---
     bus.publish(
         TradeRequestedEvent(
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             side=TradeSide.BUY,
             quantity=10
         )
@@ -103,7 +103,7 @@ def test_full_trading_flow(engine):
         assert clock.tick()
         bus.publish(
             MarketTickEvent(
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 index=clock.current_index
             )
         )
@@ -113,7 +113,7 @@ def test_full_trading_flow(engine):
     # --- 4. SELL ---
     bus.publish(
         TradeRequestedEvent(
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             side=TradeSide.SELL,
             quantity=10
         )
@@ -123,7 +123,7 @@ def test_full_trading_flow(engine):
 
     # --- 5. finish session ---
     result = bus.publish(
-        MarketClosedEvent(timestamp=datetime.utcnow())
+        MarketClosedEvent(timestamp=datetime.now(timezone.utc))
     )
 
     # --- 6. assertions ---

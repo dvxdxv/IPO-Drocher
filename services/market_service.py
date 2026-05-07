@@ -1,5 +1,5 @@
 from domain.clock import SimulationClock
-from domain.models import MarketData
+from domain.models import MarketData, TradeSide
 from domain.spread_model import FixedSpreadModel
 
 
@@ -29,12 +29,12 @@ class MarketService:
 
     # --- execution logic ---
 
-    def get_execution_price(self, side: str) -> float:
+    def get_execution_price(self, side: TradeSide) -> float:
         bid, ask = self.get_bid_ask()
 
-        if side == "BUY":
+        if side == TradeSide.BUY:
             return ask
-        elif side == "SELL":
+        elif side == TradeSide.SELL:
             return bid
         else:
             raise ValueError("Invalid side")

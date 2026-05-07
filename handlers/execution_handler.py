@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from events.trade_events import TradeValidatedEvent, TradeExecutedEvent
 
 
@@ -16,7 +16,7 @@ class ExecutionHandler:
 
         self.event_bus.publish(
             TradeExecutedEvent(
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 side=trade.side,
                 quantity=trade.quantity,
                 price=trade.price,

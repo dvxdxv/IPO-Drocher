@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from events.trade_events import (
     TradeRequestedEvent,
     TradeValidatedEvent,
@@ -21,13 +21,13 @@ class TradeHandler:
 
         if not is_valid:
             self.event_bus.publish(
-                TradeRejectedEvent(timestamp=datetime.utcnow(), reason=reason)
+                TradeRejectedEvent(timestamp=datetime.now(timezone.utc), reason=reason)
             )
             return
 
         self.event_bus.publish(
             TradeValidatedEvent(
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 side=event.side,
                 quantity=event.quantity,
                 price=price,

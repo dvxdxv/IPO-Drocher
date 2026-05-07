@@ -3,6 +3,9 @@ from dataclasses import dataclass
 from typing import Optional
 import numpy as np
 
+class TradeSide(str, Enum):
+    BUY = "BUY"
+    SELL = "SELL"
 
 @dataclass
 class MarketData:
@@ -16,7 +19,7 @@ class MarketData:
 
 @dataclass
 class TradeEvent:
-    side: str  # "BUY" or "SELL"
+    side: TradeSide
     price: float
     quantity: int
     timestamp: Optional[str] = None
@@ -27,6 +30,4 @@ class Position:
     quantity: int = 0
     avg_price: float = 0.0
     
-class TradeSide(str, Enum):
-    BUY = "BUY"
-    SELL = "SELL"
+

@@ -1,20 +1,21 @@
 from domain.account import Account
+from domain.models import TradeSide
 
 
 class TradingService:
     def __init__(self, account: Account):
         self.account = account
 
-    def validate(self, side: str, quantity: int, price: float):
+    def validate(self, side: TradeSide, quantity: int, price: float):
         if quantity <= 0:
             return False, "Quantity must be positive"
 
-        if side == "BUY":
+        if side == TradeSide.BUY:
             cost = quantity * price
             if cost > self.account.cash:
                 return False, "Insufficient cash"
 
-        elif side == "SELL":
+        elif side == TradeSide.SELL:
             if quantity > self.account.position.quantity:
                 return False, "Insufficient shares"
 
@@ -23,7 +24,7 @@ class TradingService:
 
         return True, None
 
-    def simulate(self, side: str, quantity: int, price: float):
+    def simulate(self, side: TradeSide, quantity: int, price: float):
         """
         Returns projected state AFTER trade (does not mutate account)
         """
@@ -31,7 +32,7 @@ class TradingService:
         qty = self.account.position.quantity
         avg = self.account.position.avg_price
 
-        if side == "BUY":
+        if side == TradeSide.BUY:
             total_cost = quantity * price
             new_qty = qty + quantity
 
