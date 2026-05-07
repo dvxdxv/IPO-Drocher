@@ -26,6 +26,7 @@ class ExecutionService:
             side=side,
             quantity=quantity,
             price=price,
+            timestamp=None
         )
 
         # mutate account (single source of truth)
