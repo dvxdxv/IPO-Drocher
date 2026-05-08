@@ -1,6 +1,7 @@
 import streamlit as st
-from datetime import datetime, timezone
-
+import time
+from core.settings import AUTO_TICK_INTERVAL_SECONDS
+from core.utils import now_utc
 from domain.models import TradeSide
 from events.trade_events import TradeRequestedEvent
 from events.market_events import MarketTickEvent, MarketClosedEvent
@@ -18,8 +19,41 @@ def render_trading_page():
     clock = engine["clock"]
     account = engine["account"]
     market = engine["market"]
-
     price = market.get_current_price()
+
+    if "last_auto_tick_ts" not in st.session_state:
+        st.session_state.last_auto_tick_ts = time.time()
+
+    if "auto_play" not in st.session_state:
+        st.session_state.auto_play = True
+
+    if (
+        st.session_state.auto_play
+        and not clock.is_paused
+        and not clock.is_finished()
+    ):
+        now = time.time()
+        elapsed = now - st.session_state.last_auto_tick_ts
+
+        if elapsed >= AUTO_TICK_INTERVAL_SECONDS:
+            if clock.tick():
+                bus.publish(
+                    MarketTickEvent(
+                        timestamp=now_utc(),
+                        index=clock.current_index,
+                    ),
+                    publisher="ui.trading.auto_tick",
+                    metadata={"index": clock.current_index},
+                )
+            else:
+                result = bus.publish(
+                    MarketClosedEvent(timestamp=now_utc()),
+                    publisher="ui.trading.auto_tick",
+                )
+                st.session_state.session_result = result
+
+            st.session_state.last_auto_tick_ts = now
+            st.rerun()
 
     # --- Header ---
     col1, col2, col3 = st.columns(3)
@@ -40,35 +74,22 @@ def render_trading_page():
     )
 
     # --- Time controls ---
-    col_tick, col_finish = st.columns(2)
+    col_auto, col_finish = st.columns(2)
 
-    with col_tick:
-        if st.button("Next Tick", use_container_width=True):
-            if clock.tick():
-                bus.publish(
-                    MarketTickEvent(
-                        timestamp=datetime.now(timezone.utc),
-                        index=clock.current_index,
-                    )
-                )
-            else:
-                result = bus.publish(
-                    MarketClosedEvent(
-                        timestamp=datetime.now(timezone.utc)
-                    )
-                )
-                st.session_state.session_result = result
-
-            st.rerun()
+    with col_auto:
+        st.session_state.auto_play = st.toggle(
+            "Auto Play",
+            value=st.session_state.auto_play,
+        )
 
     with col_finish:
-        if st.button("Finish Session", use_container_width=True):
+        if st.button("Finish Session", width="stretch"):
             result = bus.publish(
-                MarketClosedEvent(
-                    timestamp=datetime.now(timezone.utc)
-                )
+                MarketClosedEvent(timestamp=now_utc()),
+                publisher="ui.trading.finish_session",
             )
             st.session_state.session_result = result
+            st.session_state.auto_play = False
             st.rerun()
 
     st.divider()
@@ -121,7 +142,7 @@ def render_trading_page():
         else:
             can_preview = True
 
-        if st.button("Preview Trade", use_container_width=True, disabled=not can_preview):
+        if st.button("Preview Trade", width="stretch", disabled=not can_preview):
             clock.pause()
             st.session_state.pending_trade = {
                 "side": side,
@@ -164,13 +185,19 @@ def render_trading_page():
         col_confirm, col_cancel = st.columns(2)
 
         with col_confirm:
-            if st.button("Confirm Trade", use_container_width=True):
+            if st.button("Confirm Trade", width="stretch"):
                 bus.publish(
                     TradeRequestedEvent(
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=now_utc(),
                         side=pending["side"],
                         quantity=pending["quantity"],
-                    )
+                    ),
+                    publisher=f"ui.trading.confirm_{pending['side'].value.lower()}",
+                    metadata={
+                        "side": pending["side"].value,
+                        "quantity": pending["quantity"],
+                        "price": pending["price"],
+                    },
                 )
 
                 clock.resume()
@@ -178,7 +205,7 @@ def render_trading_page():
                 st.rerun()
 
         with col_cancel:
-            if st.button("Cancel", use_container_width=True):
+            if st.button("Cancel", width="stretch"):
                 clock.resume()
                 del st.session_state.pending_trade
                 st.rerun()
@@ -204,10 +231,18 @@ def render_trading_page():
                 }
             )
 
-        st.dataframe(rows, use_container_width=True)
+        st.dataframe(rows, width="stretch")
 
     # --- Session Result ---
     if "session_result" in st.session_state:
         st.divider()
         st.subheader("Session Result")
         st.json(st.session_state.session_result)
+
+    if (
+        st.session_state.get("auto_play", True)
+        and not clock.is_paused
+        and not clock.is_finished()
+    ):
+        time.sleep(0.15)
+        st.rerun()

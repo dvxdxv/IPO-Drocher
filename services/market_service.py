@@ -26,6 +26,26 @@ class MarketService:
     def get_bid_ask(self):
         price = self.get_current_price()
         return self.spread_model.get_bid_ask(price)
+    
+    # --- time management helpers ---
+    
+    def get_current_timestamp(self):
+        idx = self.get_current_index()
+        return self.market_data.timestamps[idx]
+
+    def get_total_steps(self) -> int:
+        return len(self.market_data.closes)
+
+    def get_elapsed_steps(self) -> int:
+        return self.clock.current_index
+
+    def get_remaining_steps(self) -> int:
+        return max(0, self.get_total_steps() - 1 - self.clock.current_index)
+
+    def get_recent_prices(self, window: int = 30):
+        idx = self.get_current_index()
+        start = max(0, idx - window + 1)
+        return self.market_data.closes[start:idx + 1]
 
     # --- execution logic ---
 
