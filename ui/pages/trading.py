@@ -1,14 +1,155 @@
-import streamlit as st
 import time
+
+import plotly.graph_objects as go
+import streamlit as st
+
 from core.settings import AUTO_TICK_INTERVAL_SECONDS
 from core.utils import now_utc
 from domain.models import TradeSide
+from events.market_events import MarketClosedEvent, MarketTickEvent
 from events.trade_events import TradeRequestedEvent
-from events.market_events import MarketTickEvent, MarketClosedEvent
 from ui.state import get_engine
 
 
-def render_trading_page():
+def apply_custom_css() -> None:
+    st.markdown(
+        """
+        <style>
+            .stApp {
+                background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 100%);
+                color: #f5f5f5;
+            }
+
+            .glass-card {
+                background: rgba(255, 255, 255, 0.08);
+                backdrop-filter: blur(20px);
+                -webkit-backdrop-filter: blur(20px);
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                border-radius: 20px;
+                padding: 1.4rem;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.28);
+            }
+
+            .ticker-price {
+                font-size: 2.4rem;
+                font-weight: 800;
+                letter-spacing: -0.03em;
+            }
+
+            .muted {
+                color: rgba(255, 255, 255, 0.6);
+                font-size: 0.9rem;
+            }
+
+            .positive {
+                color: #00ff9d;
+            }
+
+            .negative {
+                color: #ff4d6d;
+            }
+
+            .section-title {
+                font-size: 1.4rem;
+                font-weight: 700;
+                margin-bottom: 0.8rem;
+            }
+
+            .metric-label {
+                color: rgba(255, 255, 255, 0.6);
+                font-size: 0.85rem;
+                margin-bottom: 0.25rem;
+            }
+
+            .metric-value {
+                font-size: 1.6rem;
+                font-weight: 700;
+            }
+
+            .trade-title {
+                font-size: 1.6rem;
+                font-weight: 800;
+                margin-bottom: 0.8rem;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_metric_card(label: str, value: str, css_class: str = "") -> None:
+    st.markdown(
+        f"""
+        <div class="glass-card">
+            <div class="metric-label">{label}</div>
+            <div class="metric-value {css_class}">{value}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _get_recent_prices(market, window: int = 30):
+    if hasattr(market, "get_recent_prices"):
+        return market.get_recent_prices(window)
+
+    return [market.get_current_price()]
+
+
+def _format_timestamp(timestamp) -> str:
+    if timestamp is None:
+        return "-"
+
+    if hasattr(timestamp, "strftime"):
+        return timestamp.strftime("%Y-%m-%d %H:%M:%S")
+
+    return str(timestamp)
+
+
+def _start_trade_draft(clock, side: TradeSide, label: str) -> None:
+    clock.pause()
+    st.session_state.auto_play = False
+    st.session_state.last_auto_tick_ts = time.time()
+    st.session_state.pending_side = side
+    st.session_state.pending_label = label
+
+
+def _clear_trade_draft(clock, resume: bool = True) -> None:
+    if resume:
+        clock.resume()
+        st.session_state.auto_play = True
+
+    st.session_state.last_auto_tick_ts = time.time()
+
+    for key in ("pending_side", "pending_label"):
+        if key in st.session_state:
+            del st.session_state[key]
+
+
+def _publish_auto_tick(bus, clock) -> None:
+    if clock.tick():
+        bus.publish(
+            MarketTickEvent(
+                timestamp=now_utc(),
+                index=clock.current_index,
+            ),
+            publisher="ui.trading.auto_tick",
+            metadata={"index": clock.current_index},
+        )
+        return
+
+    result = bus.publish(
+        MarketClosedEvent(timestamp=now_utc()),
+        publisher="ui.trading.auto_tick",
+    )
+
+    st.session_state.session_result = result
+    st.session_state.auto_play = False
+
+
+def render_trading_page() -> None:
+    apply_custom_css()
+
     engine = get_engine()
 
     if not engine:
@@ -19,7 +160,6 @@ def render_trading_page():
     clock = engine["clock"]
     account = engine["account"]
     market = engine["market"]
-    price = market.get_current_price()
 
     if "last_auto_tick_ts" not in st.session_state:
         st.session_state.last_auto_tick_ts = time.time()
@@ -36,53 +176,105 @@ def render_trading_page():
         elapsed = now - st.session_state.last_auto_tick_ts
 
         if elapsed >= AUTO_TICK_INTERVAL_SECONDS:
-            if clock.tick():
-                bus.publish(
-                    MarketTickEvent(
-                        timestamp=now_utc(),
-                        index=clock.current_index,
-                    ),
-                    publisher="ui.trading.auto_tick",
-                    metadata={"index": clock.current_index},
-                )
-            else:
-                result = bus.publish(
-                    MarketClosedEvent(timestamp=now_utc()),
-                    publisher="ui.trading.auto_tick",
-                )
-                st.session_state.session_result = result
-
+            _publish_auto_tick(bus, clock)
             st.session_state.last_auto_tick_ts = now
             st.rerun()
 
-    # --- Header ---
-    col1, col2, col3 = st.columns(3)
-
-    col1.write(f"Trader: {st.session_state.get('username', '-')}")
-    col2.write("NYC: TODO")
-    col3.write(f"Step: {clock.current_index}")
-
-    # --- Basic account metrics ---
+    price = market.get_current_price()
+    asset_name = st.session_state.get("asset", "IPO")
     equity = account.get_equity(price)
     unrealized_pnl = account.get_unrealized_pnl(price)
     total_pnl = account.realized_pnl + unrealized_pnl
 
+    pnl_class = "positive" if total_pnl >= 0 else "negative"
+
+    # --- Header ---
     st.markdown(
-        f"### Equity: ${equity:,.2f} | "
-        f"P&L: ${total_pnl:,.2f} | "
-        f"Price: ${price:,.2f}"
+        f"""
+        <h1 style="text-align:center; margin-bottom:0;">
+            Trading • <span style="color:#00ff9d">{asset_name}</span>
+        </h1>
+        <p style="text-align:center; color:rgba(255,255,255,0.6);">
+            Trader: {st.session_state.get("username", "-")}
+        </p>
+        """,
+        unsafe_allow_html=True,
     )
 
-    # --- Time controls ---
-    col_auto, col_finish = st.columns(2)
+    header_left, header_right = st.columns([3, 2])
 
-    with col_auto:
+    with header_left:
+        st.markdown(
+            f"""
+            <div class="glass-card">
+                <div class="muted">Market Price</div>
+                <div class="ticker-price">${price:,.2f}</div>
+                <div class="muted">Step: {clock.current_index}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with header_right:
+        recent_prices = _get_recent_prices(market, 30)
+
+        if len(recent_prices) > 1:
+            fig = go.Figure()
+            fig.add_trace(
+                go.Scatter(
+                    y=recent_prices,
+                    mode="lines",
+                    line=dict(color="#00ff9d", width=3),
+                )
+            )
+            fig.update_layout(
+                height=140,
+                margin=dict(l=0, r=0, t=0, b=0),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                xaxis_visible=False,
+                yaxis_visible=False,
+            )
+            st.plotly_chart(fig, width="stretch")
+        else:
+            st.markdown(
+                """
+                <div class="glass-card">
+                    <div class="muted">Chart</div>
+                    <div class="metric-value">Waiting for ticks...</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    st.write("")
+
+    metric_cols = st.columns(4)
+
+    with metric_cols[0]:
+        _render_metric_card("Cash", f"${account.cash:,.2f}")
+
+    with metric_cols[1]:
+        _render_metric_card("Shares", f"{account.shares}")
+
+    with metric_cols[2]:
+        _render_metric_card("Equity", f"${equity:,.2f}")
+
+    with metric_cols[3]:
+        _render_metric_card("Total P&L", f"${total_pnl:,.2f}", pnl_class)
+
+    st.write("")
+
+    # --- Time Controls ---
+    control_left, control_right = st.columns([1, 1])
+
+    with control_left:
         st.session_state.auto_play = st.toggle(
             "Auto Play",
             value=st.session_state.auto_play,
         )
 
-    with col_finish:
+    with control_right:
         if st.button("Finish Session", width="stretch"):
             result = bus.publish(
                 MarketClosedEvent(timestamp=now_utc()),
@@ -94,121 +286,143 @@ def render_trading_page():
 
     st.divider()
 
-    # --- Layout ---
-    left, right = st.columns([2, 1])
+    # --- Main Layout ---
+    trade_col, portfolio_col = st.columns([2, 1])
 
-    # --- Trade Panel ---
-    with left:
-        st.subheader("Trade")
+    with trade_col:
+        st.markdown('<div class="trade-title">Trade</div>', unsafe_allow_html=True)
 
-        side_label = st.radio(
-            "Action",
-            ["Buy", "Sell"],
-            horizontal=True,
-        )
+        buy_col, sell_col = st.columns(2)
 
-        qty = st.number_input(
-            "Shares",
-            min_value=1,
-            value=10,
-            step=1,
-        )
+        with buy_col:
+            if st.button("BUY", type="primary", width="stretch", key="buy_button"):
+                _start_trade_draft(clock, TradeSide.BUY, "BUY")
+                st.rerun()
 
-        side = TradeSide[side_label.upper()]
-        execution_price = market.get_execution_price(side)
+        with sell_col:
+            sell_disabled = account.shares <= 0
 
-        estimated_value = qty * execution_price
+            if st.button(
+                "SELL",
+                width="stretch",
+                key="sell_button",
+                disabled=sell_disabled,
+            ):
+                _start_trade_draft(clock, TradeSide.SELL, "SELL")
+                st.rerun()
 
-        st.write(f"Execution Price: ${execution_price:,.2f}")
-        st.write(f"Estimated Value: ${estimated_value:,.2f}")
+        if account.shares <= 0:
+            st.caption("SELL is disabled because you do not hold shares.")
 
-        if side == TradeSide.BUY:
-            projected_cash = account.cash - estimated_value
-            projected_shares = account.shares + qty
-        else:
-            projected_cash = account.cash + estimated_value
-            projected_shares = account.shares - qty
+        if "pending_side" in st.session_state:
+            side = st.session_state.pending_side
+            label = st.session_state.pending_label
 
-        st.markdown("#### After Trade Preview")
-        st.write(f"Cash: ${account.cash:,.2f} → ${projected_cash:,.2f}")
-        st.write(f"Shares: {account.shares} → {projected_shares}")
+            execution_price = market.get_execution_price(side)
 
-        if side == TradeSide.BUY and projected_cash < 0:
-            st.error("Insufficient cash")
-            can_preview = False
-        elif side == TradeSide.SELL and qty > account.shares:
-            st.error("Insufficient shares")
-            can_preview = False
-        else:
-            can_preview = True
-
-        if st.button("Preview Trade", width="stretch", disabled=not can_preview):
-            clock.pause()
-            st.session_state.pending_trade = {
-                "side": side,
-                "side_label": side_label,
-                "quantity": qty,
-                "price": execution_price,
-                "estimated_value": estimated_value,
-                "projected_cash": projected_cash,
-                "projected_shares": projected_shares,
-            }
-            st.rerun()
-
-    # --- Portfolio Impact ---
-    with right:
-        st.subheader("Portfolio")
-
-        st.metric("Cash", f"${account.cash:,.2f}")
-        st.metric("Shares", account.shares)
-        st.metric("Avg Price", f"${account.avg_price:,.2f}")
-        st.metric("Realized P&L", f"${account.realized_pnl:,.2f}")
-        st.metric("Unrealized P&L", f"${unrealized_pnl:,.2f}")
-
-        if account.initial_cash > 0:
-            position_value = account.shares * price
-            position_pct = (position_value / equity) * 100 if equity > 0 else 0
-            st.metric("Position Size", f"{position_pct:.1f}%")
-
-    # --- Confirmation Section ---
-    if "pending_trade" in st.session_state:
-        st.divider()
-
-        pending = st.session_state.pending_trade
-
-        st.warning(
-            f"Confirm {pending['side_label']} "
-            f"{pending['quantity']} shares at "
-            f"${pending['price']:,.2f}?"
-        )
-
-        col_confirm, col_cancel = st.columns(2)
-
-        with col_confirm:
-            if st.button("Confirm Trade", width="stretch"):
-                bus.publish(
-                    TradeRequestedEvent(
-                        timestamp=now_utc(),
-                        side=pending["side"],
-                        quantity=pending["quantity"],
-                    ),
-                    publisher=f"ui.trading.confirm_{pending['side'].value.lower()}",
-                    metadata={
-                        "side": pending["side"].value,
-                        "quantity": pending["quantity"],
-                        "price": pending["price"],
-                    },
+            if side == TradeSide.SELL:
+                max_qty = max(account.shares, 1)
+                default_qty = max(1, min(account.shares, 10))
+                qty = st.number_input(
+                    "Quantity (shares)",
+                    min_value=1,
+                    max_value=max_qty,
+                    value=default_qty,
+                    step=1,
+                )
+            else:
+                qty = st.number_input(
+                    "Quantity (shares)",
+                    min_value=1,
+                    value=10,
+                    step=1,
                 )
 
-                clock.resume()
-                del st.session_state.pending_trade
-                st.rerun()
+            estimated_value = qty * execution_price
 
-        with col_cancel:
-            if st.button("Cancel", width="stretch"):
-                clock.resume()
-                del st.session_state.pending_trade
-                st.rerun()
+            if side == TradeSide.BUY:
+                projected_cash = account.cash - estimated_value
+                projected_shares = account.shares + qty
+            else:
+                projected_cash = account.cash + estimated_value
+                projected_shares = account.shares - qty
+
+            st.markdown(
+                f"""
+                <div class="glass-card">
+                    <div class="section-title">Trade Confirmation</div>
+                    <div class="muted">Action</div>
+                    <div class="metric-value">{label}</div>
+                    <br>
+                    <div class="muted">Execution Price</div>
+                    <div class="metric-value">${execution_price:,.2f}</div>
+                    <br>
+                    <div class="muted">Estimated Value</div>
+                    <div class="metric-value">${estimated_value:,.2f}</div>
+                    <br>
+                    <div class="muted">After Trade</div>
+                    <div>Cash: ${account.cash:,.2f} → ${projected_cash:,.2f}</div>
+                    <div>Shares: {account.shares} → {projected_shares}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            if side == TradeSide.BUY and projected_cash < 0:
+                st.error("Insufficient cash")
+                can_confirm = False
+            elif side == TradeSide.SELL and qty > account.shares:
+                st.error("Insufficient shares")
+                can_confirm = False
+            else:
+                can_confirm = True
+
+            confirm_col, cancel_col = st.columns(2)
+
+            with confirm_col:
+                if st.button(
+                    f"Confirm {label}",
+                    type="primary",
+                    width="stretch",
+                    disabled=not can_confirm,
+                ):
+                    bus.publish(
+                        TradeRequestedEvent(
+                            timestamp=now_utc(),
+                            side=side,
+                            quantity=qty,
+                        ),
+                        publisher=f"ui.trading.confirm_{side.value.lower()}",
+                        metadata={
+                            "side": side.value,
+                            "quantity": qty,
+                            "price": execution_price,
+                        },
+                    )
+
+                    _clear_trade_draft(clock, resume=True)
+                    st.rerun()
+
+            with cancel_col:
+                if st.button("Cancel", width="stretch"):
+                    _clear_trade_draft(clock, resume=True)
+                    st.rerun()
+
+    with portfolio_col:
+        st.markdown('<div class="section-title">Portfolio</div>', unsafe_allow_html=True)
+
+        position_value = account.shares * price
+        position_pct = (position_value / equity) * 100 if equity > 0 else 0
+
+        _render_metric_card("Avg Price", f"${account.avg_price:,.2f}")
+        st.write("")
+        _render_metric_card("Position Value", f"${position_value:,.2f}")
+        st.write("")
+        _render_metric_card("Realized P&L", f"${account.realized_pnl:,.2f}")
+        st.write("")
+        _render_metric_card("Unrealized P&L", f"${unrealized_pnl:,.2f}")
+        st.write("")
+        _render_metric_card("Position Size", f"{position_pct:.1f}%")
 
     # --- Transactions ---
     st.divider()
@@ -226,15 +440,15 @@ def render_trading_page():
                 {
                     "Side": trade.side.value if hasattr(trade.side, "value") else str(trade.side),
                     "Qty": trade.quantity,
-                    "Price": trade.price,
-                    "Timestamp": trade.timestamp,
+                    "Price": f"${trade.price:,.2f}",
+                    "Timestamp": _format_timestamp(trade.timestamp),
                 }
             )
 
-        st.dataframe(rows, width="stretch")
+        st.dataframe(rows, width="stretch", hide_index=True)
 
     # --- Session Result ---
-    if "session_result" in st.session_state:
+    if "session_result" in st.session_state and st.session_state.session_result:
         st.divider()
         st.subheader("Session Result")
         st.json(st.session_state.session_result)
