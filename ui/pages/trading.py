@@ -15,67 +15,22 @@ def apply_custom_css() -> None:
     st.markdown(
         """
         <style>
-            .stApp {
-                background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 100%);
-                color: #f5f5f5;
-            }
-
-            .glass-card {
-                background: rgba(255, 255, 255, 0.08);
-                backdrop-filter: blur(20px);
-                -webkit-backdrop-filter: blur(20px);
-                border: 1px solid rgba(255, 255, 255, 0.15);
-                border-radius: 20px;
-                padding: 1.4rem;
-                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.28);
-            }
-
-            .ticker-price {
-                font-size: 2.4rem;
+            .app-title {
+                font-size: 2.8rem;
                 font-weight: 800;
-                letter-spacing: -0.03em;
-            }
-
-            .muted {
-                color: rgba(255, 255, 255, 0.6);
-                font-size: 0.9rem;
-            }
-
-            .positive {
-                color: #00ff9d;
-            }
-
-            .negative {
-                color: #ff4d6d;
-            }
-
-            .section-title {
-                font-size: 1.4rem;
-                font-weight: 700;
-                margin-bottom: 0.8rem;
-            }
-
-            .metric-label {
-                color: rgba(255, 255, 255, 0.6);
-                font-size: 0.85rem;
+                text-align: center;
                 margin-bottom: 0.25rem;
             }
 
-            .metric-value {
-                font-size: 1.6rem;
-                font-weight: 700;
-            }
-
-            .trade-title {
-                font-size: 1.6rem;
-                font-weight: 800;
-                margin-bottom: 0.8rem;
+            .app-subtitle {
+                text-align: center;
+                opacity: 0.75;
+                margin-bottom: 2rem;
             }
         </style>
         """,
         unsafe_allow_html=True,
     )
-
 
 def _render_metric_card(label: str, value: str, css_class: str = "") -> None:
     st.markdown(
@@ -449,9 +404,53 @@ def render_trading_page() -> None:
 
     # --- Session Result ---
     if "session_result" in st.session_state and st.session_state.session_result:
+        result = st.session_state.session_result
+
+        final_equity = result.get("final_equity", 0.0)
+        total_pnl = result.get("total_pnl", 0.0)
+        realized_pnl = result.get("realized_pnl", 0.0)
+        unrealized_pnl = result.get("unrealized_pnl", 0.0)
+        roi_percent = result.get("roi_percent", 0.0)
+        grade = result.get("grade", "-")
+        win_rate = result.get("win_rate", 0.0)
+        total_trades = result.get("total_trades", 0)
+
+        pnl_sign = "+" if total_pnl >= 0 else ""
+        roi_sign = "+" if roi_percent >= 0 else ""
+
         st.divider()
         st.subheader("Session Result")
-        st.json(st.session_state.session_result)
+
+        with st.container(border=True):
+            st.markdown(f"## Grade: `{grade}`")
+
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+                st.metric("Final Equity", f"${final_equity:,.2f}")
+
+            with col2:
+                st.metric("Total P&L", f"{pnl_sign}${total_pnl:,.2f}")
+
+            with col3:
+                st.metric("ROI", f"{roi_sign}{roi_percent:.2f}%")
+
+            st.divider()
+
+            col4, col5, col6 = st.columns(3)
+
+            with col4:
+                st.metric("Realized P&L", f"${realized_pnl:,.2f}")
+
+            with col5:
+                st.metric("Unrealized P&L", f"${unrealized_pnl:,.2f}")
+
+            with col6:
+                st.metric("Win Rate", f"{win_rate:.1f}%")
+
+            st.markdown(f"**Total Trades:** {total_trades}")
+
+            st.caption("Session is complete. You can review your trades below or start a new session.")
 
     if (
         st.session_state.get("auto_play", True)

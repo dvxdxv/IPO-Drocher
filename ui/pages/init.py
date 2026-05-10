@@ -5,46 +5,30 @@ from ui.state import init_engine
 
 DATA_FOLDER = "data/"  
 
+def extract_ticker(file_name: str) -> str:
+    return file_name.split("_", 1)[0]
+
 def apply_custom_css() -> None:
     st.markdown(
         """
         <style>
-            .stApp {
-                background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 100%);
-                color: #f5f5f5;
-            }
-
-            .glass-card {
-                background: rgba(255, 255, 255, 0.08);
-                backdrop-filter: blur(20px);
-                -webkit-backdrop-filter: blur(20px);
-                border: 1px solid rgba(255, 255, 255, 0.15);
-                border-radius: 24px;
-                padding: 2.5rem;
-                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
-            }
-
             .app-title {
-                font-size: 3.2rem;
+                font-size: 2.8rem;
                 font-weight: 800;
                 text-align: center;
-                background: linear-gradient(90deg, #00ff9d, #00d4ff);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
                 margin-bottom: 0.25rem;
             }
 
             .app-subtitle {
                 text-align: center;
-                color: rgba(255, 255, 255, 0.65);
+                opacity: 0.75;
                 margin-bottom: 2rem;
             }
         </style>
         """,
         unsafe_allow_html=True,
     )
-
-
+    
 def render_init_page() -> None:
     apply_custom_css()
 
@@ -61,7 +45,7 @@ def render_init_page() -> None:
 
         username = st.text_input(
             "Username",
-            placeholder="Alex",
+            placeholder="Enter your trader name..",
         )
 
         deposit = st.number_input(
@@ -82,7 +66,7 @@ def render_init_page() -> None:
         asset = st.selectbox(
             "Choose IPO Asset",
             files,
-            format_func=lambda file_name: file_name.replace(".csv", ""),
+            format_func=extract_ticker,
         )
 
         if st.button("Start Trading", type="primary", width="stretch"):
@@ -95,7 +79,7 @@ def render_init_page() -> None:
             init_engine(deposit, file_path)
 
             st.session_state.username = username.strip()
-            st.session_state.asset = asset.replace(".csv", "")
+            st.session_state.asset = extract_ticker(asset)
             st.session_state.page = "trading"
 
             st.rerun()
