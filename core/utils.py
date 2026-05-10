@@ -2,12 +2,11 @@
 Utility helpers (time, formatting, etc.)
 No business logic here.
 """
-
+import pandas as pd
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 from core.settings import MARKET_TIMEZONE
-
 
 def now_utc() -> datetime:
     """
@@ -73,7 +72,20 @@ def format_pnl(value: float) -> str:
     """
     Format PnL with sign.
     """
-
     sign = "+" if value >= 0 else ""
-
     return f"{sign}{value:.2f}"
+
+def normalize_timestamp_to_utc(dt) -> datetime:
+    """
+    Convert pandas/numpy/python datetime to timezone-aware UTC datetime.
+    """
+    return pd.to_datetime(dt, utc=True).to_pydatetime()
+
+
+def format_market_datetime(dt) -> str:
+    """
+    Format any timestamp-like object in market timezone.
+    """
+    utc_dt = normalize_timestamp_to_utc(dt)
+    market_dt = utc_to_market(utc_dt)
+    return market_dt.strftime("%Y-%m-%d %H:%M:%S %Z")

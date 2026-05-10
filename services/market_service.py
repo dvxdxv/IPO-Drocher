@@ -32,6 +32,13 @@ class MarketService:
     def get_current_timestamp(self):
         idx = self.get_current_index()
         return self.market_data.timestamps[idx]
+    
+    def get_start_timestamp(self):
+        return self.market_data.timestamps[0]
+
+
+    def get_end_timestamp(self):
+        return self.market_data.timestamps[-1]
 
     def get_total_steps(self) -> int:
         return len(self.market_data.closes)

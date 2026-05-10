@@ -4,7 +4,11 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from core.settings import AUTO_TICK_INTERVAL_SECONDS
-from core.utils import now_utc
+from core.utils import (
+    now_utc,
+    format_duration_from_minutes,
+    format_market_datetime,
+)
 from domain.models import TradeSide
 from events.market_events import MarketClosedEvent, MarketTickEvent
 from events.trade_events import TradeRequestedEvent
@@ -31,18 +35,6 @@ def apply_custom_css() -> None:
         """,
         unsafe_allow_html=True,
     )
-
-def _render_metric_card(label: str, value: str, css_class: str = "") -> None:
-    st.markdown(
-        f"""
-        <div class="glass-card">
-            <div class="metric-label">{label}</div>
-            <div class="metric-value {css_class}">{value}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
 
 def _get_recent_prices(market, window: int = 30):
     if hasattr(market, "get_recent_prices"):
@@ -102,6 +94,52 @@ def _publish_auto_tick(bus, clock) -> None:
     st.session_state.auto_play = False
 
 
+def render_compact_header(account, clock, market) -> None:
+    asset_name = st.session_state.get("asset", "IPO")
+    trader_name = st.session_state.get("username", "-")
+
+    price = market.get_current_price()
+
+    current_time = format_market_datetime(market.get_current_timestamp())
+    elapsed = format_duration_from_minutes(market.get_elapsed_steps())
+    remaining = format_duration_from_minutes(market.get_remaining_steps())
+
+    if clock.is_finished():
+        status = "Finished"
+    elif clock.is_paused:
+        status = "Paused"
+    else:
+        status = "Running"
+
+    with st.container(border=True):
+        row1_col1, row1_col2, row1_col3, row1_col4 = st.columns(
+            [1.1, 1.2, 1.1, 2.4]
+        )
+
+        with row1_col1:
+            st.markdown(f"### {asset_name}")
+
+        with row1_col2:
+            st.markdown(f"### ${price:,.2f}")
+
+        with row1_col3:
+            st.markdown(f"### {status}")
+
+        with row1_col4:
+            st.markdown(f"**NYC:** {current_time}")
+
+        row2_col1, row2_col2, row2_col3 = st.columns([1.3, 1.7, 1.7])
+
+        with row2_col1:
+            st.caption(f"Trader: {trader_name}")
+
+        with row2_col2:
+            st.caption(f"Session Elapsed: {elapsed}")
+
+        with row2_col3:
+            st.caption(f"Time Left: {remaining}")
+
+
 def render_trading_page() -> None:
     apply_custom_css()
 
@@ -136,42 +174,20 @@ def render_trading_page() -> None:
             st.rerun()
 
     price = market.get_current_price()
-    asset_name = st.session_state.get("asset", "IPO")
     equity = account.get_equity(price)
     unrealized_pnl = account.get_unrealized_pnl(price)
     total_pnl = account.realized_pnl + unrealized_pnl
 
-    pnl_class = "positive" if total_pnl >= 0 else "negative"
-
     # --- Header ---
-    st.markdown(
-        f"""
-        <h1 style="text-align:center; margin-bottom:0;">
-            Trading • <span style="color:#00ff9d">{asset_name}</span>
-        </h1>
-        <p style="text-align:center; color:rgba(255,255,255,0.6);">
-            Trader: {st.session_state.get("username", "-")}
-        </p>
-        """,
-        unsafe_allow_html=True,
-    )
+    render_compact_header(account, clock, market)
 
-    header_left, header_right = st.columns([3, 2])
+    st.write("")
 
-    with header_left:
-        st.markdown(
-            f"""
-            <div class="glass-card">
-                <div class="muted">Market Price</div>
-                <div class="ticker-price">${price:,.2f}</div>
-                <div class="muted">Step: {clock.current_index}</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+    # --- Chart ---
+    recent_prices = _get_recent_prices(market, 60)
 
-    with header_right:
-        recent_prices = _get_recent_prices(market, 30)
+    with st.container(border=True):
+        st.markdown("#### Price Chart")
 
         if len(recent_prices) > 1:
             fig = go.Figure()
@@ -179,12 +195,12 @@ def render_trading_page() -> None:
                 go.Scatter(
                     y=recent_prices,
                     mode="lines",
-                    line=dict(color="#00ff9d", width=3),
+                    line=dict(color="#22c55e", width=3),
                 )
             )
             fig.update_layout(
-                height=140,
-                margin=dict(l=0, r=0, t=0, b=0),
+                height=280,
+                margin=dict(l=10, r=10, t=10, b=10),
                 paper_bgcolor="rgba(0,0,0,0)",
                 plot_bgcolor="rgba(0,0,0,0)",
                 xaxis_visible=False,
@@ -192,31 +208,24 @@ def render_trading_page() -> None:
             )
             st.plotly_chart(fig, width="stretch")
         else:
-            st.markdown(
-                """
-                <div class="glass-card">
-                    <div class="muted">Chart</div>
-                    <div class="metric-value">Waiting for ticks...</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+            st.info("Waiting for market ticks...")
 
     st.write("")
 
+    # --- Key Metrics ---
     metric_cols = st.columns(4)
 
     with metric_cols[0]:
-        _render_metric_card("Cash", f"${account.cash:,.2f}")
+        st.metric("Cash", f"${account.cash:,.2f}")
 
     with metric_cols[1]:
-        _render_metric_card("Shares", f"{account.shares}")
+        st.metric("Shares", f"{account.shares}")
 
     with metric_cols[2]:
-        _render_metric_card("Equity", f"${equity:,.2f}")
+        st.metric("Equity", f"${equity:,.2f}")
 
     with metric_cols[3]:
-        _render_metric_card("Total P&L", f"${total_pnl:,.2f}", pnl_class)
+        st.metric("Total P&L", f"${total_pnl:,.2f}")
 
     st.write("")
 
@@ -245,7 +254,7 @@ def render_trading_page() -> None:
     trade_col, portfolio_col = st.columns([2, 1])
 
     with trade_col:
-        st.markdown('<div class="trade-title">Trade</div>', unsafe_allow_html=True)
+        st.subheader("Trade")
 
         buy_col, sell_col = st.columns(2)
 
@@ -302,26 +311,12 @@ def render_trading_page() -> None:
                 projected_cash = account.cash + estimated_value
                 projected_shares = account.shares - qty
 
-            st.markdown(
-                f"""
-                <div class="glass-card">
-                    <div class="section-title">Trade Confirmation</div>
-                    <div class="muted">Action</div>
-                    <div class="metric-value">{label}</div>
-                    <br>
-                    <div class="muted">Execution Price</div>
-                    <div class="metric-value">${execution_price:,.2f}</div>
-                    <br>
-                    <div class="muted">Estimated Value</div>
-                    <div class="metric-value">${estimated_value:,.2f}</div>
-                    <br>
-                    <div class="muted">After Trade</div>
-                    <div>Cash: ${account.cash:,.2f} → ${projected_cash:,.2f}</div>
-                    <div>Shares: {account.shares} → {projected_shares}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+            with st.container(border=True):
+                st.markdown(f"### Trade Confirmation: {label}")
+                st.write(f"Execution Price: **${execution_price:,.2f}**")
+                st.write(f"Estimated Value: **${estimated_value:,.2f}**")
+                st.write(f"Cash: ${account.cash:,.2f} → ${projected_cash:,.2f}")
+                st.write(f"Shares: {account.shares} → {projected_shares}")
 
             if side == TradeSide.BUY and projected_cash < 0:
                 st.error("Insufficient cash")
@@ -364,20 +359,17 @@ def render_trading_page() -> None:
                     st.rerun()
 
     with portfolio_col:
-        st.markdown('<div class="section-title">Portfolio</div>', unsafe_allow_html=True)
+        st.subheader("Portfolio")
 
         position_value = account.shares * price
         position_pct = (position_value / equity) * 100 if equity > 0 else 0
 
-        _render_metric_card("Avg Price", f"${account.avg_price:,.2f}")
-        st.write("")
-        _render_metric_card("Position Value", f"${position_value:,.2f}")
-        st.write("")
-        _render_metric_card("Realized P&L", f"${account.realized_pnl:,.2f}")
-        st.write("")
-        _render_metric_card("Unrealized P&L", f"${unrealized_pnl:,.2f}")
-        st.write("")
-        _render_metric_card("Position Size", f"{position_pct:.1f}%")
+        with st.container(border=True):
+            st.metric("Avg Price", f"${account.avg_price:,.2f}")
+            st.metric("Position Value", f"${position_value:,.2f}")
+            st.metric("Realized P&L", f"${account.realized_pnl:,.2f}")
+            st.metric("Unrealized P&L", f"${unrealized_pnl:,.2f}")
+            st.metric("Position Size", f"{position_pct:.1f}%")
 
     # --- Transactions ---
     st.divider()
@@ -393,7 +385,9 @@ def render_trading_page() -> None:
         for trade in trades:
             rows.append(
                 {
-                    "Side": trade.side.value if hasattr(trade.side, "value") else str(trade.side),
+                    "Side": trade.side.value
+                    if hasattr(trade.side, "value")
+                    else str(trade.side),
                     "Qty": trade.quantity,
                     "Price": f"${trade.price:,.2f}",
                     "Timestamp": _format_timestamp(trade.timestamp),
@@ -450,7 +444,9 @@ def render_trading_page() -> None:
 
             st.markdown(f"**Total Trades:** {total_trades}")
 
-            st.caption("Session is complete. You can review your trades below or start a new session.")
+            st.caption(
+                "Session is complete. You can review your trades below or start a new session."
+            )
 
     if (
         st.session_state.get("auto_play", True)
