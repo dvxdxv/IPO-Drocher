@@ -3,13 +3,7 @@ import streamlit as st
 from adapters.file_storage_adapter import FileStorageAdapter
 from ui.state import init_engine
 
-
-<<<<<<< HEAD
 DATA_FOLDER = "adapters/data/"  # Change to "data/" if you move CSV files to root data folder
-=======
-DATA_FOLDER = "data/"  
->>>>>>> 95aeff1 (Commit#7. Change Data Storage Logic. Added README.md. Added global paths in settings.py)
-
 
 def apply_custom_css() -> None:
     st.markdown(
