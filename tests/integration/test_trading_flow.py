@@ -1,8 +1,8 @@
 import pytest
 from datetime import datetime, timezone
 
-from adapters.data.file_storage_adapter import FileStorageAdapter
-from adapters.data.data_loader import CsvDataLoader
+from adapters.file_storage_adapter import FileStorageAdapter
+from adapters.data_loader import CsvDataLoader
 
 from domain.account import Account
 from domain.clock import SimulationClock
