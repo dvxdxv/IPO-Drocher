@@ -13,23 +13,103 @@ from domain.models import TradeSide
 from events.market_events import MarketClosedEvent, MarketTickEvent
 from events.trade_events import TradeRequestedEvent
 from ui.state import get_engine
+from textwrap import dedent
 
 
 def apply_custom_css() -> None:
     st.markdown(
         """
         <style>
-            .app-title {
-                font-size: 2.8rem;
-                font-weight: 800;
-                text-align: center;
-                margin-bottom: 0.25rem;
+            .session-header {
+                border: 1px solid rgba(255, 255, 255, 0.16);
+                border-radius: 10px;
+                padding: 16px 18px;
+                margin-bottom: 18px;
+                background: rgba(255, 255, 255, 0.02);
             }
 
-            .app-subtitle {
-                text-align: center;
-                opacity: 0.75;
-                margin-bottom: 2rem;
+            .session-grid {
+                display: grid;
+                grid-template-columns: 1.4fr 1fr 1.6fr;
+                row-gap: 10px;
+                column-gap: 24px;
+                align-items: start;
+            }
+
+            .h-cell {
+                text-align: left;
+            }
+
+            .h-main {
+                font-size: 1.25rem;
+                font-weight: 800;
+                line-height: 1.2;
+            }
+
+            .h-sub {
+                font-size: 1rem;
+                opacity: 0.9;
+                line-height: 1.25;
+            }
+
+            .h-price {
+                margin-left: 14px;
+            }
+
+            .h-strong {
+                font-weight: 700;
+            }
+
+            .mobile-only {
+                display: none;
+            }
+
+            .desktop-only {
+                display: inline;
+            }
+
+            @media (max-width: 768px) {
+                .session-grid {
+                    grid-template-columns: 1fr 1fr 1fr;
+                    column-gap: 8px;
+                    row-gap: 8px;
+                }
+
+                .h-main {
+                    font-size: 0.95rem;
+                    white-space: nowrap;
+                }
+
+                .h-sub {
+                    font-size: 0.82rem;
+                    white-space: nowrap;
+                }
+
+                .h-price {
+                    margin-left: 6px;
+                }
+
+                .desktop-only {
+                    display: none;
+                }
+
+                .mobile-only {
+                    display: inline;
+                }
+            }
+
+            @media (max-width: 420px) {
+                .session-header {
+                    padding: 12px 10px;
+                }
+
+                .h-main {
+                    font-size: 0.86rem;
+                }
+
+                .h-sub {
+                    font-size: 0.76rem;
+                }
             }
         </style>
         """,
@@ -100,9 +180,11 @@ def render_compact_header(account, clock, market) -> None:
 
     price = market.get_current_price()
 
-    current_time = format_market_datetime(market.get_current_timestamp())
+    current_dt = format_market_datetime(market.get_current_timestamp())
     elapsed = format_duration_from_minutes(market.get_elapsed_steps())
     remaining = format_duration_from_minutes(market.get_remaining_steps())
+
+    current_dt_short = current_dt.replace(":00 ", "")
 
     if clock.is_finished():
         status = "Finished"
@@ -111,33 +193,45 @@ def render_compact_header(account, clock, market) -> None:
     else:
         status = "Running"
 
-    with st.container(border=True):
-        row1_col1, row1_col2, row1_col3, row1_col4 = st.columns(
-            [1.1, 1.2, 1.1, 2.4]
-        )
+    html = (
+        '<div class="session-header">'
+        '<div class="session-grid">'
 
-        with row1_col1:
-            st.markdown(f"### {asset_name}")
+        f'<div class="h-cell h-main">'
+        f'{asset_name}<span class="h-price">${price:,.2f}</span>'
+        f'</div>'
 
-        with row1_col2:
-            st.markdown(f"### ${price:,.2f}")
+        f'<div class="h-cell h-main">'
+        f'<span class="desktop-only">Status: </span>{status}'
+        f'</div>'
 
-        with row1_col3:
-            st.markdown(f"### {status}")
+        f'<div class="h-cell h-main">'
+        f'<span class="desktop-only">NYC: {current_dt}</span>'
+        f'<span class="mobile-only">{current_dt_short}</span>'
+        f'</div>'
 
-        with row1_col4:
-            st.markdown(f"**NYC:** {current_time}")
+        f'<div class="h-cell h-sub">'
+        f'<span class="desktop-only">Trader: </span>'
+        f'<span class="h-strong">{trader_name}</span>'
+        f'</div>'
 
-        row2_col1, row2_col2, row2_col3 = st.columns([1.3, 1.7, 1.7])
+        f'<div class="h-cell h-sub">'
+        f'<span class="desktop-only">Session Elapsed: </span>'
+        f'<span class="mobile-only">Elapsed: </span>'
+        f'<span class="h-strong">{elapsed}</span>'
+        f'</div>'
 
-        with row2_col1:
-            st.caption(f"Trader: {trader_name}")
+        f'<div class="h-cell h-sub">'
+        f'<span class="desktop-only">Time Left: </span>'
+        f'<span class="mobile-only">Left: </span>'
+        f'<span class="h-strong">{remaining}</span>'
+        f'</div>'
 
-        with row2_col2:
-            st.caption(f"Session Elapsed: {elapsed}")
+        '</div>'
+        '</div>'
+    )
 
-        with row2_col3:
-            st.caption(f"Time Left: {remaining}")
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def render_trading_page() -> None:
