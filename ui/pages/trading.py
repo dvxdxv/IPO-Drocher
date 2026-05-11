@@ -1,19 +1,17 @@
 import time
 
-import plotly.graph_objects as go
 import streamlit as st
 
 from core.settings import AUTO_TICK_INTERVAL_SECONDS
-from core.utils import (
-    now_utc,
-    format_duration_from_minutes,
-    format_market_datetime,
-)
+from core.utils import now_utc
 from domain.models import TradeSide
 from events.market_events import MarketClosedEvent, MarketTickEvent
 from events.trade_events import TradeRequestedEvent
 from ui.state import get_engine
 from textwrap import dedent
+from ui.components.session_header import render_session_header
+from ui.components.price_chart import render_price_chart
+from ui.components.account_metrics import render_account_metrics
 
 
 def apply_custom_css() -> None:
@@ -116,13 +114,6 @@ def apply_custom_css() -> None:
         unsafe_allow_html=True,
     )
 
-def _get_recent_prices(market, window: int = 30):
-    if hasattr(market, "get_recent_prices"):
-        return market.get_recent_prices(window)
-
-    return [market.get_current_price()]
-
-
 def _format_timestamp(timestamp) -> str:
     if timestamp is None:
         return "-"
@@ -173,67 +164,6 @@ def _publish_auto_tick(bus, clock) -> None:
     st.session_state.session_result = result
     st.session_state.auto_play = False
 
-
-def render_compact_header(account, clock, market) -> None:
-    asset_name = st.session_state.get("asset", "IPO")
-    trader_name = st.session_state.get("username", "-")
-
-    price = market.get_current_price()
-
-    current_dt = format_market_datetime(market.get_current_timestamp())
-    elapsed = format_duration_from_minutes(market.get_elapsed_steps())
-    remaining = format_duration_from_minutes(market.get_remaining_steps())
-
-    current_dt_short = current_dt.replace(":00 ", "")
-
-    if clock.is_finished():
-        status = "Finished"
-    elif clock.is_paused:
-        status = "Paused"
-    else:
-        status = "Running"
-
-    html = (
-        '<div class="session-header">'
-        '<div class="session-grid">'
-
-        f'<div class="h-cell h-main">'
-        f'{asset_name}<span class="h-price">${price:,.2f}</span>'
-        f'</div>'
-
-        f'<div class="h-cell h-main">'
-        f'<span class="desktop-only">Status: </span>{status}'
-        f'</div>'
-
-        f'<div class="h-cell h-main">'
-        f'<span class="desktop-only">NYC: {current_dt}</span>'
-        f'<span class="mobile-only">{current_dt_short}</span>'
-        f'</div>'
-
-        f'<div class="h-cell h-sub">'
-        f'<span class="desktop-only">Trader: </span>'
-        f'<span class="h-strong">{trader_name}</span>'
-        f'</div>'
-
-        f'<div class="h-cell h-sub">'
-        f'<span class="desktop-only">Session Elapsed: </span>'
-        f'<span class="mobile-only">Elapsed: </span>'
-        f'<span class="h-strong">{elapsed}</span>'
-        f'</div>'
-
-        f'<div class="h-cell h-sub">'
-        f'<span class="desktop-only">Time Left: </span>'
-        f'<span class="mobile-only">Left: </span>'
-        f'<span class="h-strong">{remaining}</span>'
-        f'</div>'
-
-        '</div>'
-        '</div>'
-    )
-
-    st.markdown(html, unsafe_allow_html=True)
-
-
 def render_trading_page() -> None:
     apply_custom_css()
 
@@ -268,58 +198,21 @@ def render_trading_page() -> None:
             st.rerun()
 
     price = market.get_current_price()
-    equity = account.get_equity(price)
-    unrealized_pnl = account.get_unrealized_pnl(price)
-    total_pnl = account.realized_pnl + unrealized_pnl
 
     # --- Header ---
-    render_compact_header(account, clock, market)
+    render_session_header(account, clock, market)
 
     st.write("")
 
     # --- Chart ---
-    recent_prices = _get_recent_prices(market, 60)
-
-    with st.container(border=True):
-        st.markdown("#### Price Chart")
-
-        if len(recent_prices) > 1:
-            fig = go.Figure()
-            fig.add_trace(
-                go.Scatter(
-                    y=recent_prices,
-                    mode="lines",
-                    line=dict(color="#22c55e", width=3),
-                )
-            )
-            fig.update_layout(
-                height=280,
-                margin=dict(l=10, r=10, t=10, b=10),
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                xaxis_visible=False,
-                yaxis_visible=False,
-            )
-            st.plotly_chart(fig, width="stretch")
-        else:
-            st.info("Waiting for market ticks...")
-
-    st.write("")
+    render_price_chart(market, window = 60)
 
     # --- Key Metrics ---
-    metric_cols = st.columns(4)
+    metrics = render_account_metrics(account, price)
 
-    with metric_cols[0]:
-        st.metric("Cash", f"${account.cash:,.2f}")
-
-    with metric_cols[1]:
-        st.metric("Shares", f"{account.shares}")
-
-    with metric_cols[2]:
-        st.metric("Equity", f"${equity:,.2f}")
-
-    with metric_cols[3]:
-        st.metric("Total P&L", f"${total_pnl:,.2f}")
+    equity = metrics["equity"]
+    unrealized_pnl = metrics["unrealized_pnl"]
+    total_pnl = metrics["total_pnl"]
 
     st.write("")
 
