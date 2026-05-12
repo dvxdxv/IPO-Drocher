@@ -364,7 +364,12 @@ def render_trading_page() -> None:
     render_session_header(account, clock, market)
     st.write("")
 
-    render_price_chart(market, window=60)
+    render_price_chart(
+        market,
+        window=60,
+        height=220,
+        interactive=False,
+    )
 
     metrics = render_account_metrics(account, price)
     equity = metrics["equity"]
