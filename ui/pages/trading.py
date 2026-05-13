@@ -32,7 +32,7 @@ def apply_custom_css() -> None:
                ========================= */
 
             .block-container {
-                padding-top: 1rem !important;
+                padding-top: 3rem !important;
                 padding-bottom: 5.5rem !important;
             }
 
@@ -41,7 +41,7 @@ def apply_custom_css() -> None:
                     padding-top: 0.5rem !important;
                     padding-left: 1rem !important;
                     padding-right: 1rem !important;
-                    padding-bottom: 6.5rem !important;
+                    padding-bottom: 3.5rem !important;
                 }
 
                 h1, h2, h3 {
@@ -60,10 +60,13 @@ def apply_custom_css() -> None:
                session_header.py renders .session-header
                ========================= */
 
+            header[data-testid="stHeader"] 
+            { display: none !important; }
+               
             @media (max-width: 768px) {
                 .session-header {
                     position: sticky !important;
-                    top: 7.4rem !important;
+                    top: 3.4rem !important;
                     z-index: 999 !important;
                     background: rgba(15, 23, 42, 0.94) !important;
                     backdrop-filter: blur(12px) !important;
@@ -193,10 +196,11 @@ def apply_custom_css() -> None:
             ========================= */
 
             @media (max-width: 768px) {
-                .st-key-buy_sell_row div[data-testid="stHorizontalBlock"] {
+                .st-key-buy_sell_row div[data-testid="stHorizontalBlock"]:has(div[data-testid="stColumn"]) {
                     display: flex !important;
                     flex-direction: row !important;
                     flex-wrap: nowrap !important;
+                    width: 100% !important;
                     gap: 0.5rem !important;
                 }
 
@@ -393,6 +397,7 @@ def _render_trade_panel(bus, clock, account) -> None:
                     width="stretch",
                     key="buy_button",
                     disabled=session_finished,
+                    use_container_width=True,
                 ):
                     _open_trade_review(clock, TradeSide.BUY, "BUY")
                     st.rerun()
@@ -403,6 +408,7 @@ def _render_trade_panel(bus, clock, account) -> None:
                     width="stretch",
                     key="sell_button",
                     disabled=sell_disabled,
+                    use_container_width=True,
                 ):
                     _open_trade_review(clock, TradeSide.SELL, "SELL")
                     st.rerun()
