@@ -19,13 +19,58 @@ logger = logging.getLogger("ipo_drocher.ui.trading")
 
 def apply_custom_css() -> None:
     """
-    Keep page-level CSS empty.
-
     Header CSS belongs to session_header.py.
     Streamlit theme belongs to .streamlit/config.toml.
     """
+    st.markdown(
+            """
+            <style>
+                /* Active SELL button */
+                .st-key-sell_button button {
+                    background-color: #dc2626 !important;
+                    color: #ffffff !important;
+                    border: 1px solid #ef4444 !important;
+                    font-weight: 700 !important;
+                }
 
-    return
+                .st-key-sell_button button:hover {
+                    background-color: #ef4444 !important;
+                    color: #ffffff !important;
+                    border-color: #f87171 !important;
+                }
+
+                /* Disabled SELL button */
+                .st-key-sell_button button:disabled {
+                    background-color: rgba(127, 29, 29, 0.35) !important;
+                    color: rgba(255, 255, 255, 0.45) !important;
+                    border: 1px solid rgba(248, 113, 113, 0.35) !important;
+                }
+
+                /* Finish Session button */
+                .st-key-finish_session_button button {
+                    background-color: rgba(37, 99, 235, 0.18) !important;
+                    color: #bfdbfe !important;
+                    border: 1px solid rgba(96, 165, 250, 0.75) !important;
+                    font-weight: 700 !important;
+                }
+
+                .st-key-finish_session_button button:hover {
+                    background-color: rgba(37, 99, 235, 0.34) !important;
+                    color: #ffffff !important;
+                    border-color: #93c5fd !important;
+                }
+
+                /* SELL disabled note */
+                .sell-disabled-note {
+                    font-size: 0.85rem;
+                    font-style: italic;
+                    opacity: 0.72;
+                    margin-top: -0.35rem;
+                }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 def _debug_trade_state() -> dict:
@@ -175,31 +220,10 @@ def _run_autoplay_if_due(bus, clock) -> None:
     st.session_state.last_auto_tick_ts = now
     st.rerun()
 
-
-def _render_time_controls(bus) -> None:
-    control_left, control_right = st.columns([1, 1])
-
-    with control_left:
-        st.session_state.auto_play = st.toggle(
-            "Auto Play",
-            value=st.session_state.auto_play,
-        )
-
-    with control_right:
-        if st.button("Finish Session", width="stretch"):
-            result = bus.publish(
-                MarketClosedEvent(timestamp=now_utc()),
-                publisher="ui.trading.finish_session",
-            )
-            st.session_state.session_result = result
-            st.session_state.auto_play = False
-            st.rerun()
-
-
-def _render_trade_panel(clock, account) -> None:
+def _render_trade_panel(bus, clock, account) -> None:
     st.subheader("Trade")
 
-    buy_col, sell_col, spacer_col = st.columns([1, 1, 2])
+    buy_col, sell_col, finish_col = st.columns([1, 1, 2])
 
     with buy_col:
         if st.button("BUY", type="primary", width="stretch", key="buy_button"):
@@ -218,14 +242,51 @@ def _render_trade_panel(clock, account) -> None:
             _open_trade_review(clock, TradeSide.SELL, "SELL")
             st.rerun()
 
-    if account.shares <= 0:
-        st.caption("SELL is disabled because you do not hold shares.")
+    with finish_col:
+        if st.button("Finish Session", width="stretch", key="finish_session_button"):
+            result = bus.publish(
+                MarketClosedEvent(timestamp=now_utc()),
+                publisher="ui.trading.finish_session",
+            )
+            st.session_state.session_result = result
+            st.session_state.auto_play = False
+            st.rerun()
+
+    autoplay_col, sell_note_col, spacer_col = st.columns([1, 1, 2])
+
+    with autoplay_col:
+        st.session_state.auto_play = st.toggle(
+            "Auto Play",
+            value=st.session_state.auto_play,
+            key="auto_play_toggle",
+        )
+
+    with sell_note_col:
+        if account.shares <= 0:
+            st.markdown(
+                '<div class="sell-disabled-note">SELL is disabled because you do not hold shares.</div>',
+                unsafe_allow_html=True,
+            )
 
 def _render_transactions(account) -> None:
+    trades = account.trades
+
+    logger.info(
+        "RENDER_TRANSACTIONS | trades_count=%s | trades=%s",
+        len(trades),
+        [
+            {
+                "side": trade.side.value if hasattr(trade.side, "value") else str(trade.side),
+                "qty": trade.quantity,
+                "price": trade.price,
+                "timestamp": _format_timestamp(trade.timestamp),
+            }
+            for trade in trades
+        ],
+    )
+
     st.divider()
     st.subheader("Transactions")
-
-    trades = account.trades
 
     if not trades:
         st.info("No trades executed yet.")
@@ -361,11 +422,9 @@ def render_trading_page() -> None:
 
     st.write("")
 
-    _render_time_controls(bus)
-
     st.divider()
 
-    _render_trade_panel(clock, account)
+    _render_trade_panel(bus, clock, account)
 
     _render_trade_review_dialog_if_needed(bus, account, market)
 
