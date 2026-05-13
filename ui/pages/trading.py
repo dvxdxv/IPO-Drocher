@@ -63,9 +63,9 @@ def apply_custom_css() -> None:
             @media (max-width: 768px) {
                 .session-header {
                     position: sticky !important;
-                    top: 0.5rem !important;
+                    top: 2.4rem !important;
                     z-index: 999 !important;
-                    background: rgba(15, 23, 42, 0.92) !important;
+                    background: rgba(15, 23, 42, 0.94) !important;
                     backdrop-filter: blur(12px) !important;
                     -webkit-backdrop-filter: blur(12px) !important;
                     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25) !important;
@@ -192,18 +192,6 @@ def apply_custom_css() -> None:
                ========================= */
 
             @media (max-width: 768px) {
-                .st-key-trade_actions div[data-testid="stHorizontalBlock"] {
-                    display: flex !important;
-                    flex-direction: row !important;
-                    gap: 0.5rem !important;
-                    flex-wrap: nowrap !important;
-                }
-
-                .st-key-trade_actions div[data-testid="column"] {
-                    min-width: 0 !important;
-                    flex: 1 1 0 !important;
-                }
-
                 .st-key-trade_actions button {
                     min-height: 44px !important;
                     font-size: 0.9rem !important;
@@ -211,7 +199,7 @@ def apply_custom_css() -> None:
 
                 .st-key-trade_actions .sell-disabled-note {
                     font-size: 0.75rem !important;
-                    margin-top: -0.2rem !important;
+                    margin-top: -0.15rem !important;
                 }
             }
         </style>
@@ -374,7 +362,8 @@ def _render_trade_panel(bus, clock, account) -> None:
     sell_disabled = account.shares <= 0 or session_finished
 
     with st.container(key="trade_actions"):
-        buy_col, sell_col, finish_col = st.columns([1, 1, 2])
+        # Row 1: BUY + SELL only
+        buy_col, sell_col = st.columns([1, 1], gap="small")
 
         with buy_col:
             if st.button(
@@ -397,25 +386,26 @@ def _render_trade_panel(bus, clock, account) -> None:
                 _open_trade_review(clock, TradeSide.SELL, "SELL")
                 st.rerun()
 
-        with finish_col:
-            if st.button(
-                "Finish Session",
-                width="stretch",
-                key="finish_session_button",
-            ):
-                result = bus.publish(
-                    MarketClosedEvent(timestamp=now_utc()),
-                    publisher="ui.trading.finish_session",
-                )
+        # Row 2: Finish Session full-width
+        if st.button(
+            "Finish Session",
+            width="stretch",
+            key="finish_session_button",
+        ):
+            result = bus.publish(
+                MarketClosedEvent(timestamp=now_utc()),
+                publisher="ui.trading.finish_session",
+            )
 
-                st.session_state.session_result = result
-                st.session_state.auto_play = False
-                st.session_state.session_finished = True
-                st.session_state.page = "session_result"
+            st.session_state.session_result = result
+            st.session_state.auto_play = False
+            st.session_state.session_finished = True
+            st.session_state.page = "session_result"
 
-                st.rerun()
+            st.rerun()
 
-        autoplay_col, sell_note_col, spacer_col = st.columns([1, 1, 2])
+        # Row 3: Auto Play + SELL note
+        autoplay_col, sell_note_col = st.columns([1, 3], gap="small")
 
         with autoplay_col:
             st.session_state.auto_play = st.toggle(
