@@ -19,58 +19,205 @@ logger = logging.getLogger("ipo_drocher.ui.trading")
 
 def apply_custom_css() -> None:
     """
-    Header CSS belongs to session_header.py.
-    Streamlit theme belongs to .streamlit/config.toml.
+    Page-level CSS only.
+
+    Header structure belongs to session_header.py.
+    Streamlit global theme belongs to .streamlit/config.toml.
     """
     st.markdown(
-            """
-            <style>
-                /* Active SELL button */
-                .st-key-sell_button button {
-                    background-color: #dc2626 !important;
-                    color: #ffffff !important;
-                    border: 1px solid #ef4444 !important;
-                    font-weight: 700 !important;
+        """
+        <style>
+            /* =========================
+               Page spacing
+               ========================= */
+
+            .block-container {
+                padding-top: 1rem !important;
+                padding-bottom: 5.5rem !important;
+            }
+
+            @media (max-width: 768px) {
+                .block-container {
+                    padding-top: 0.5rem !important;
+                    padding-left: 1rem !important;
+                    padding-right: 1rem !important;
+                    padding-bottom: 6.5rem !important;
                 }
 
-                .st-key-sell_button button:hover {
-                    background-color: #ef4444 !important;
-                    color: #ffffff !important;
-                    border-color: #f87171 !important;
+                h1, h2, h3 {
+                    margin-top: 0.35rem !important;
+                    margin-bottom: 0.45rem !important;
                 }
 
-                /* Disabled SELL button */
-                .st-key-sell_button button:disabled {
-                    background-color: rgba(127, 29, 29, 0.35) !important;
-                    color: rgba(255, 255, 255, 0.45) !important;
-                    border: 1px solid rgba(248, 113, 113, 0.35) !important;
+                div[data-testid="stVerticalBlock"] {
+                    gap: 0.45rem !important;
+                }
+            }
+
+
+            /* =========================
+               Sticky compact header
+               session_header.py renders .session-header
+               ========================= */
+
+            @media (max-width: 768px) {
+                .session-header {
+                    position: sticky !important;
+                    top: 0.5rem !important;
+                    z-index: 999 !important;
+                    background: rgba(15, 23, 42, 0.92) !important;
+                    backdrop-filter: blur(12px) !important;
+                    -webkit-backdrop-filter: blur(12px) !important;
+                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25) !important;
+                }
+            }
+
+            /* =========================
+            IPO Trader Dashboard
+            ========================= */
+
+            .trader-dashboard {
+                border: 1px solid rgba(255, 255, 255, 0.16);
+                border-radius: 12px;
+                padding: 1rem;
+                margin-top: 0.7rem;
+                margin-bottom: 0.8rem;
+                background: rgba(255, 255, 255, 0.02);
+            }
+
+            .dashboard-title {
+                font-size: 1.15rem;
+                font-weight: 800;
+                margin-bottom: 0.9rem;
+            }
+
+            .dashboard-grid {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 1rem 1.2rem;
+            }
+
+            .dashboard-cell-label {
+                font-size: 0.78rem;
+                opacity: 0.68;
+                margin-bottom: 0.25rem;
+            }
+
+            .dashboard-cell-value {
+                font-size: 1.35rem;
+                font-weight: 800;
+                line-height: 1.15;
+            }
+
+            @media (max-width: 768px) {
+                .trader-dashboard {
+                    padding: 0.85rem;
+                    margin-top: 0.5rem;
+                    margin-bottom: 0.6rem;
                 }
 
-                /* Finish Session button */
-                .st-key-finish_session_button button {
-                    background-color: rgba(37, 99, 235, 0.18) !important;
-                    color: #bfdbfe !important;
-                    border: 1px solid rgba(96, 165, 250, 0.75) !important;
-                    font-weight: 700 !important;
+                .dashboard-title {
+                    font-size: 1.05rem;
+                    margin-bottom: 0.75rem;
                 }
 
-                .st-key-finish_session_button button:hover {
-                    background-color: rgba(37, 99, 235, 0.34) !important;
-                    color: #ffffff !important;
-                    border-color: #93c5fd !important;
+                .dashboard-grid {
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 0.75rem 1rem;
                 }
 
-                /* SELL disabled note */
-                .sell-disabled-note {
-                    font-size: 0.85rem;
-                    font-style: italic;
-                    opacity: 0.72;
-                    margin-top: -0.35rem;
+                .dashboard-cell-label {
+                    font-size: 0.72rem;
                 }
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
+
+                .dashboard-cell-value {
+                    font-size: 1.05rem;
+                }
+            }
+            /* =========================
+               Trade action buttons
+               ========================= */
+
+            .st-key-sell_button button {
+                background-color: #dc2626 !important;
+                color: #ffffff !important;
+                border: 1px solid #ef4444 !important;
+                font-weight: 700 !important;
+            }
+
+            .st-key-sell_button button:hover {
+                background-color: #ef4444 !important;
+                color: #ffffff !important;
+                border-color: #f87171 !important;
+            }
+
+            .st-key-sell_button button:disabled {
+                background-color: rgba(127, 29, 29, 0.35) !important;
+                color: rgba(255, 255, 255, 0.45) !important;
+                border: 1px solid rgba(248, 113, 113, 0.35) !important;
+            }
+
+            .st-key-finish_session_button button {
+                background-color: rgba(37, 99, 235, 0.18) !important;
+                color: #bfdbfe !important;
+                border: 1px solid rgba(96, 165, 250, 0.75) !important;
+                font-weight: 700 !important;
+            }
+
+            .st-key-finish_session_button button:hover {
+                background-color: rgba(37, 99, 235, 0.34) !important;
+                color: #ffffff !important;
+                border-color: #93c5fd !important;
+            }
+
+
+            /* =========================
+               SELL disabled note
+               ========================= */
+
+            .sell-disabled-note {
+                font-size: 0.8rem;
+                font-style: italic;
+                opacity: 0.72;
+                margin-top: -0.35rem;
+                line-height: 1.2;
+            }
+
+
+            /* =========================
+               Mobile trade controls density
+               Requires:
+               with st.container(key="trade_actions"):
+                   ...
+               ========================= */
+
+            @media (max-width: 768px) {
+                .st-key-trade_actions div[data-testid="stHorizontalBlock"] {
+                    display: flex !important;
+                    flex-direction: row !important;
+                    gap: 0.5rem !important;
+                    flex-wrap: nowrap !important;
+                }
+
+                .st-key-trade_actions div[data-testid="column"] {
+                    min-width: 0 !important;
+                    flex: 1 1 0 !important;
+                }
+
+                .st-key-trade_actions button {
+                    min-height: 44px !important;
+                    font-size: 0.9rem !important;
+                }
+
+                .st-key-trade_actions .sell-disabled-note {
+                    font-size: 0.75rem !important;
+                    margin-top: -0.2rem !important;
+                }
+            }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def _debug_trade_state() -> dict:
@@ -226,78 +373,76 @@ def _render_trade_panel(bus, clock, account) -> None:
     session_finished = st.session_state.get("session_finished", False)
     sell_disabled = account.shares <= 0 or session_finished
 
-    buy_col, sell_col, finish_col = st.columns([1, 1, 2])
+    with st.container(key="trade_actions"):
+        buy_col, sell_col, finish_col = st.columns([1, 1, 2])
 
-    with buy_col:
-        if st.button(
-            "BUY",
-            type="primary",
-            width="stretch",
-            key="buy_button",
-            disabled=session_finished,
-        ):
-            _open_trade_review(clock, TradeSide.BUY, "BUY")
-            st.rerun()
+        with buy_col:
+            if st.button(
+                "BUY",
+                type="primary",
+                width="stretch",
+                key="buy_button",
+                disabled=session_finished,
+            ):
+                _open_trade_review(clock, TradeSide.BUY, "BUY")
+                st.rerun()
 
-    with sell_col:
-        if st.button(
-            "SELL",
-            width="stretch",
-            key="sell_button",
-            disabled=sell_disabled,
-        ):
-            _open_trade_review(clock, TradeSide.SELL, "SELL")
-            st.rerun()
+        with sell_col:
+            if st.button(
+                "SELL",
+                width="stretch",
+                key="sell_button",
+                disabled=sell_disabled,
+            ):
+                _open_trade_review(clock, TradeSide.SELL, "SELL")
+                st.rerun()
 
-    with finish_col:
-        if st.button(
-            "Finish Session",
-            width="stretch",
-            key="finish_session_button",
-        ):
-            result = bus.publish(
-                MarketClosedEvent(timestamp=now_utc()),
-                publisher="ui.trading.finish_session",
+        with finish_col:
+            if st.button(
+                "Finish Session",
+                width="stretch",
+                key="finish_session_button",
+            ):
+                result = bus.publish(
+                    MarketClosedEvent(timestamp=now_utc()),
+                    publisher="ui.trading.finish_session",
+                )
+
+                st.session_state.session_result = result
+                st.session_state.auto_play = False
+                st.session_state.session_finished = True
+                st.session_state.page = "session_result"
+
+                st.rerun()
+
+        autoplay_col, sell_note_col, spacer_col = st.columns([1, 1, 2])
+
+        with autoplay_col:
+            st.session_state.auto_play = st.toggle(
+                "Auto Play",
+                value=st.session_state.auto_play,
+                key="auto_play_toggle",
             )
 
-            st.session_state.session_result = result
-            st.session_state.auto_play = False
-            st.session_state.session_finished = True
-            st.session_state.page = "session_result"
+        with sell_note_col:
+            sell_note_placeholder = st.empty()
 
-            st.rerun()
-
-    # IMPORTANT:
-    # This row must be OUTSIDE finish_col.
-    # It aligns under BUY / SELL / Finish Session.
-    autoplay_col, sell_note_col, spacer_col = st.columns([1, 1, 2])
-
-    with autoplay_col:
-        st.session_state.auto_play = st.toggle(
-            "Auto Play",
-            value=st.session_state.auto_play,
-            key="auto_play_toggle",
-        )
-
-    with sell_note_col:
-        sell_note_placeholder = st.empty()
-
-        if sell_disabled:
-            if session_finished:
-                sell_note_placeholder.markdown(
-                    '<div class="sell-disabled-note">Session is finished.</div>',
-                    unsafe_allow_html=True,
-                )
+            if sell_disabled:
+                if session_finished:
+                    sell_note_placeholder.markdown(
+                        '<div class="sell-disabled-note">Session is finished.</div>',
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    sell_note_placeholder.markdown(
+                        '<div class="sell-disabled-note">SELL is disabled because you do not hold shares.</div>',
+                        unsafe_allow_html=True,
+                    )
             else:
                 sell_note_placeholder.markdown(
-                    '<div class="sell-disabled-note">SELL is disabled because you do not hold shares.</div>',
+                    '<div class="sell-disabled-note">&nbsp;</div>',
                     unsafe_allow_html=True,
                 )
-        else:
-            sell_note_placeholder.markdown(
-                '<div class="sell-disabled-note">&nbsp;</div>',
-                unsafe_allow_html=True,
-            )
 
 def _render_transactions(account) -> None:
     trades = account.trades

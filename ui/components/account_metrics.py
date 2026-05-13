@@ -10,17 +10,24 @@ def _format_signed_money(value: float) -> str:
     return f"{sign}${value:,.2f}"
 
 
-def _metric_cell(label: str, value: str) -> None:
-    st.caption(label)
-    st.markdown(f"### {value}")
+def _cell(label: str, value: str) -> str:
+    return (
+        '<div class="dashboard-cell">'
+        f'<div class="dashboard-cell-label">{label}</div>'
+        f'<div class="dashboard-cell-value">{value}</div>'
+        '</div>'
+    )
 
 
 def render_account_metrics(account, price: float) -> dict:
     """
-    Render IPO Trader Dashboard.
+    Render compact IPO Trader Dashboard.
 
-    This dashboard contains only decision-useful trading data.
-    Session-level metrics like ROI, grade, win rate should live on Session Result page.
+    Desktop:
+    - 4 columns
+
+    Mobile:
+    - 2 columns via CSS grid
     """
 
     equity = account.get_equity(price)
@@ -30,38 +37,23 @@ def render_account_metrics(account, price: float) -> dict:
 
     avg_price_text = _format_money(account.avg_price) if account.shares > 0 else "—"
 
-    with st.container(border=True):
-        st.markdown("### IPO Trader Dashboard")
+    dashboard_html = (
+        '<div class="trader-dashboard">'
+        '<div class="dashboard-title">IPO Trader Dashboard</div>'
+        '<div class="dashboard-grid">'
+        + _cell("Price", _format_money(price))
+        + _cell("Avg Price", avg_price_text)
+        + _cell("Shares", f"{account.shares}")
+        + _cell("Total P&L", _format_signed_money(total_pnl))
+        + _cell("Cash", _format_money(account.cash))
+        + _cell("Position Value", _format_money(position_value))
+        + _cell("Unrealized P&L", _format_signed_money(unrealized_pnl))
+        + _cell("Realized P&L", _format_signed_money(account.realized_pnl))
+        + '</div>'
+        '</div>'
+    )
 
-        row1_col1, row1_col2, row1_col3, row1_col4 = st.columns(4)
-
-        with row1_col1:
-            _metric_cell("Price", _format_money(price))
-
-        with row1_col2:
-            _metric_cell("Avg Price", avg_price_text)
-
-        with row1_col3:
-            _metric_cell("Shares", f"{account.shares}")
-
-        with row1_col4:
-            _metric_cell("Total P&L", _format_signed_money(total_pnl))
-
-        st.divider()
-
-        row2_col1, row2_col2, row2_col3, row2_col4 = st.columns(4)
-
-        with row2_col1:
-            _metric_cell("Cash", _format_money(account.cash))
-
-        with row2_col2:
-            _metric_cell("Position Value", _format_money(position_value))
-
-        with row2_col3:
-            _metric_cell("Unrealized P&L", _format_signed_money(unrealized_pnl))
-
-        with row2_col4:
-            _metric_cell("Realized P&L", _format_signed_money(account.realized_pnl))
+    st.html(dashboard_html)
 
     return {
         "equity": equity,

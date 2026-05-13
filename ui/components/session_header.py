@@ -15,7 +15,12 @@ def apply_session_header_css() -> None:
                 border-radius: 10px;
                 padding: 16px 18px;
                 margin-bottom: 18px;
-                background: rgba(255, 255, 255, 0.02);
+                position: sticky;
+                top: 0.5rem;
+                z-index: 999;
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
+                background: rgba(15, 23, 42, 0.88);
             }
 
             .session-grid {
