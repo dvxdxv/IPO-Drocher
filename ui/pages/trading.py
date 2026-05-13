@@ -14,7 +14,6 @@ from ui.components.price_chart import render_price_chart
 from ui.components.session_header import render_session_header
 from ui.components.trade_review_dialog import render_trade_review_dialog
 
-
 logger = logging.getLogger("ipo_drocher.ui.trading")
 
 
@@ -200,7 +199,7 @@ def _render_time_controls(bus) -> None:
 def _render_trade_panel(clock, account) -> None:
     st.subheader("Trade")
 
-    buy_col, sell_col = st.columns(2)
+    buy_col, sell_col, spacer_col = st.columns([1, 1, 2])
 
     with buy_col:
         if st.button("BUY", type="primary", width="stretch", key="buy_button"):
@@ -221,21 +220,6 @@ def _render_trade_panel(clock, account) -> None:
 
     if account.shares <= 0:
         st.caption("SELL is disabled because you do not hold shares.")
-
-
-def _render_portfolio_panel(account, price: float, equity: float, unrealized_pnl: float) -> None:
-    st.subheader("Portfolio")
-
-    position_value = account.shares * price
-    position_pct = (position_value / equity) * 100 if equity > 0 else 0
-
-    with st.container(border=True):
-        st.metric("Avg Price", f"${account.avg_price:,.2f}")
-        st.metric("Position Value", f"${position_value:,.2f}")
-        st.metric("Realized P&L", f"${account.realized_pnl:,.2f}")
-        st.metric("Unrealized P&L", f"${unrealized_pnl:,.2f}")
-        st.metric("Position Size", f"{position_pct:.1f}%")
-
 
 def _render_transactions(account) -> None:
     st.divider()
@@ -381,13 +365,7 @@ def render_trading_page() -> None:
 
     st.divider()
 
-    trade_col, portfolio_col = st.columns([2, 1])
-
-    with trade_col:
-        _render_trade_panel(clock, account)
-
-    with portfolio_col:
-        _render_portfolio_panel(account, price, equity, unrealized_pnl)
+    _render_trade_panel(clock, account)
 
     _render_trade_review_dialog_if_needed(bus, account, market)
 
