@@ -63,7 +63,7 @@ def apply_custom_css() -> None:
             @media (max-width: 768px) {
                 .session-header {
                     position: sticky !important;
-                    top: 2.4rem !important;
+                    top: 7.4rem !important;
                     z-index: 999 !important;
                     background: rgba(15, 23, 42, 0.94) !important;
                     backdrop-filter: blur(12px) !important;
@@ -185,13 +185,32 @@ def apply_custom_css() -> None:
 
 
             /* =========================
-               Mobile trade controls density
-               Requires:
-               with st.container(key="trade_actions"):
-                   ...
-               ========================= */
+            Mobile trade controls density
+
+            BUY / SELL are forced into one row only inside:
+            with st.container(key="buy_sell_row"):
+                ...
+            ========================= */
 
             @media (max-width: 768px) {
+                .st-key-buy_sell_row div[data-testid="stHorizontalBlock"] {
+                    display: flex !important;
+                    flex-direction: row !important;
+                    flex-wrap: nowrap !important;
+                    gap: 0.5rem !important;
+                }
+
+                .st-key-buy_sell_row div[data-testid="column"] {
+                    flex: 1 1 0 !important;
+                    min-width: 0 !important;
+                }
+
+                .st-key-buy_sell_row button {
+                    width: 100% !important;
+                    min-height: 44px !important;
+                    font-size: 0.9rem !important;
+                }
+
                 .st-key-trade_actions button {
                     min-height: 44px !important;
                     font-size: 0.9rem !important;
@@ -362,31 +381,33 @@ def _render_trade_panel(bus, clock, account) -> None:
     sell_disabled = account.shares <= 0 or session_finished
 
     with st.container(key="trade_actions"):
+
         # Row 1: BUY + SELL only
-        buy_col, sell_col = st.columns([1, 1], gap="small")
+        with st.container(key="buy_sell_row"):
+            buy_col, sell_col = st.columns([1, 1], gap="small")
 
-        with buy_col:
-            if st.button(
-                "BUY",
-                type="primary",
-                width="stretch",
-                key="buy_button",
-                disabled=session_finished,
-            ):
-                _open_trade_review(clock, TradeSide.BUY, "BUY")
-                st.rerun()
+            with buy_col:
+                if st.button(
+                    "BUY",
+                    type="primary",
+                    width="stretch",
+                    key="buy_button",
+                    disabled=session_finished,
+                ):
+                    _open_trade_review(clock, TradeSide.BUY, "BUY")
+                    st.rerun()
 
-        with sell_col:
-            if st.button(
-                "SELL",
-                width="stretch",
-                key="sell_button",
-                disabled=sell_disabled,
-            ):
-                _open_trade_review(clock, TradeSide.SELL, "SELL")
-                st.rerun()
+            with sell_col:
+                if st.button(
+                    "SELL",
+                    width="stretch",
+                    key="sell_button",
+                    disabled=sell_disabled,
+                ):
+                    _open_trade_review(clock, TradeSide.SELL, "SELL")
+                    st.rerun()
 
-        # Row 2: Finish Session full-width
+        # Row 2: Finish Session separately
         if st.button(
             "Finish Session",
             width="stretch",
@@ -404,36 +425,32 @@ def _render_trade_panel(bus, clock, account) -> None:
 
             st.rerun()
 
-        # Row 3: Auto Play + SELL note
-        autoplay_col, sell_note_col = st.columns([1, 3], gap="small")
+        # Row 3: Auto Play
+        st.session_state.auto_play = st.toggle(
+            "Auto Play",
+            value=st.session_state.auto_play,
+            key="auto_play_toggle",
+        )
 
-        with autoplay_col:
-            st.session_state.auto_play = st.toggle(
-                "Auto Play",
-                value=st.session_state.auto_play,
-                key="auto_play_toggle",
-            )
+        # Row 4: SELL note
+        sell_note_placeholder = st.empty()
 
-        with sell_note_col:
-            sell_note_placeholder = st.empty()
-
-            if sell_disabled:
-                if session_finished:
-                    sell_note_placeholder.markdown(
-                        '<div class="sell-disabled-note">Session is finished.</div>',
-                        unsafe_allow_html=True,
-                    )
-                else:
-                    sell_note_placeholder.markdown(
-                        '<div class="sell-disabled-note">SELL is disabled because you do not hold shares.</div>',
-                        unsafe_allow_html=True,
-                    )
-            else:
+        if sell_disabled:
+            if session_finished:
                 sell_note_placeholder.markdown(
-                    '<div class="sell-disabled-note">&nbsp;</div>',
+                    '<div class="sell-disabled-note">Session is finished.</div>',
                     unsafe_allow_html=True,
                 )
-
+            else:
+                sell_note_placeholder.markdown(
+                    '<div class="sell-disabled-note">SELL is disabled because you do not hold shares.</div>',
+                    unsafe_allow_html=True,
+                )
+        else:
+            sell_note_placeholder.markdown(
+                '<div class="sell-disabled-note">&nbsp;</div>',
+                unsafe_allow_html=True,
+            )
 def _render_transactions(account) -> None:
     trades = account.trades
 
