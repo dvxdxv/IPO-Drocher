@@ -223,16 +223,23 @@ def _run_autoplay_if_due(bus, clock) -> None:
 def _render_trade_panel(bus, clock, account) -> None:
     st.subheader("Trade")
 
+    session_finished = st.session_state.get("session_finished", False)
+    sell_disabled = account.shares <= 0 or session_finished
+
     buy_col, sell_col, finish_col = st.columns([1, 1, 2])
 
     with buy_col:
-        if st.button("BUY", type="primary", width="stretch", key="buy_button"):
+        if st.button(
+            "BUY",
+            type="primary",
+            width="stretch",
+            key="buy_button",
+            disabled=session_finished,
+        ):
             _open_trade_review(clock, TradeSide.BUY, "BUY")
             st.rerun()
 
     with sell_col:
-        sell_disabled = account.shares <= 0
-
         if st.button(
             "SELL",
             width="stretch",
@@ -243,15 +250,26 @@ def _render_trade_panel(bus, clock, account) -> None:
             st.rerun()
 
     with finish_col:
-        if st.button("Finish Session", width="stretch", key="finish_session_button"):
+        if st.button(
+            "Finish Session",
+            width="stretch",
+            key="finish_session_button",
+        ):
             result = bus.publish(
                 MarketClosedEvent(timestamp=now_utc()),
                 publisher="ui.trading.finish_session",
             )
+
             st.session_state.session_result = result
             st.session_state.auto_play = False
+            st.session_state.session_finished = True
+            st.session_state.page = "session_result"
+
             st.rerun()
 
+    # IMPORTANT:
+    # This row must be OUTSIDE finish_col.
+    # It aligns under BUY / SELL / Finish Session.
     autoplay_col, sell_note_col, spacer_col = st.columns([1, 1, 2])
 
     with autoplay_col:
@@ -262,9 +280,22 @@ def _render_trade_panel(bus, clock, account) -> None:
         )
 
     with sell_note_col:
-        if account.shares <= 0:
-            st.markdown(
-                '<div class="sell-disabled-note">SELL is disabled because you do not hold shares.</div>',
+        sell_note_placeholder = st.empty()
+
+        if sell_disabled:
+            if session_finished:
+                sell_note_placeholder.markdown(
+                    '<div class="sell-disabled-note">Session is finished.</div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                sell_note_placeholder.markdown(
+                    '<div class="sell-disabled-note">SELL is disabled because you do not hold shares.</div>',
+                    unsafe_allow_html=True,
+                )
+        else:
+            sell_note_placeholder.markdown(
+                '<div class="sell-disabled-note">&nbsp;</div>',
                 unsafe_allow_html=True,
             )
 
@@ -305,59 +336,6 @@ def _render_transactions(account) -> None:
         )
 
     st.dataframe(rows, width="stretch", hide_index=True)
-
-
-def _render_session_result() -> None:
-    if "session_result" not in st.session_state or not st.session_state.session_result:
-        return
-
-    result = st.session_state.session_result
-
-    final_equity = result.get("final_equity", 0.0)
-    total_pnl = result.get("total_pnl", 0.0)
-    realized_pnl = result.get("realized_pnl", 0.0)
-    unrealized_pnl = result.get("unrealized_pnl", 0.0)
-    roi_percent = result.get("roi_percent", 0.0)
-    grade = result.get("grade", "-")
-    win_rate = result.get("win_rate", 0.0)
-    total_trades = result.get("total_trades", 0)
-
-    pnl_sign = "+" if total_pnl >= 0 else ""
-    roi_sign = "+" if roi_percent >= 0 else ""
-
-    st.divider()
-    st.subheader("Session Result")
-
-    with st.container(border=True):
-        st.markdown(f"## Grade: `{grade}`")
-
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            st.metric("Final Equity", f"${final_equity:,.2f}")
-
-        with col2:
-            st.metric("Total P&L", f"{pnl_sign}${total_pnl:,.2f}")
-
-        with col3:
-            st.metric("ROI", f"{roi_sign}{roi_percent:.2f}%")
-
-        st.divider()
-
-        col4, col5, col6 = st.columns(3)
-
-        with col4:
-            st.metric("Realized P&L", f"${realized_pnl:,.2f}")
-
-        with col5:
-            st.metric("Unrealized P&L", f"${unrealized_pnl:,.2f}")
-
-        with col6:
-            st.metric("Win Rate", f"{win_rate:.1f}%")
-
-        st.markdown(f"**Total Trades:** {total_trades}")
-        st.caption("Session is complete. You can review your trades below or start a new session.")
-
 
 def _render_trade_review_dialog_if_needed(bus, account, market) -> None:
     should_open = (
@@ -429,6 +407,6 @@ def render_trading_page() -> None:
     _render_trade_review_dialog_if_needed(bus, account, market)
 
     _render_transactions(account)
-    _render_session_result()
 
     _rerun_for_autoplay_if_needed(clock)
+
