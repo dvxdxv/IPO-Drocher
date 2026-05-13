@@ -196,24 +196,22 @@ def apply_custom_css() -> None:
             ========================= */
 
             @media (max-width: 768px) {
-                .st-key-buy_sell_row div[data-testid="stHorizontalBlock"]:has(div[data-testid="stColumn"]) {
-                    display: flex !important;
-                    flex-direction: row !important;
-                    flex-wrap: nowrap !important;
-                    width: 100% !important;
-                    gap: 0.5rem !important;
-                }
+                .st-key-buy_sell_row > div:first-child {
+                display: flex !important;
+                flex-direction: row !important;
+                gap: 8px !important;
+                width: 100% !important;
+            }
 
-                .st-key-buy_sell_row div[data-testid="column"] {
-                    flex: 1 1 0 !important;
-                    min-width: 0 !important;
-                }
+            .st-key-buy_sell_row > div:first-child > div {
+                flex: 1 1 0 !important;
+                min-width: 0 !important;
+                max-width: 50% !important;
+            }
 
-                .st-key-buy_sell_row button {
-                    width: 100% !important;
-                    min-height: 44px !important;
-                    font-size: 0.9rem !important;
-                }
+            .st-key-buy_sell_row > div:first-child > div button {
+                width: 100% !important;
+            }
 
                 .st-key-trade_actions button {
                     min-height: 44px !important;
@@ -388,30 +386,26 @@ def _render_trade_panel(bus, clock, account) -> None:
 
         # Row 1: BUY + SELL only
         with st.container(key="buy_sell_row"):
-            buy_col, sell_col = st.columns([1, 1], gap="small")
+            st.button(
+                "BUY",
+                type="primary",
+                key="buy_button",
+                disabled=session_finished,
+                use_container_width=True,
+            )
+            if st.session_state.get("buy_button"):
+                _open_trade_review(clock, TradeSide.BUY, "BUY")
+                st.rerun()
 
-            with buy_col:
-                if st.button(
-                    "BUY",
-                    type="primary",
-                    width="stretch",
-                    key="buy_button",
-                    disabled=session_finished,
-                    use_container_width=True,
-                ):
-                    _open_trade_review(clock, TradeSide.BUY, "BUY")
-                    st.rerun()
-
-            with sell_col:
-                if st.button(
-                    "SELL",
-                    width="stretch",
-                    key="sell_button",
-                    disabled=sell_disabled,
-                    use_container_width=True,
-                ):
-                    _open_trade_review(clock, TradeSide.SELL, "SELL")
-                    st.rerun()
+            st.button(
+                "SELL",
+                key="sell_button",
+                disabled=sell_disabled,
+                use_container_width=True,
+            )
+            if st.session_state.get("sell_button"):
+                _open_trade_review(clock, TradeSide.SELL, "SELL")
+                st.rerun()
 
         # Row 2: Finish Session separately
         if st.button(
