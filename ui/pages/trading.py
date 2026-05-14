@@ -60,20 +60,30 @@ def apply_custom_css() -> None:
                session_header.py renders .session-header
                ========================= */
 
-            header[data-testid="stHeader"] 
-            { display: none !important; }
-               
-            @media (max-width: 768px) {
-                .session-header {
-                    position: sticky !important;
-                    top: 3.4rem !important;
-                    z-index: 999 !important;
-                    background: rgba(15, 23, 42, 0.94) !important;
-                    backdrop-filter: blur(12px) !important;
-                    -webkit-backdrop-filter: blur(12px) !important;
-                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25) !important;
+            header[data-testid="stHeader"],
+                div[data-testid="stToolbar"] {
+                    display: none !important;
                 }
-            }
+
+                .main > div:first-child {
+                    padding-top: 0 !important;
+                }
+
+                div[data-testid="stAppViewBlockContainer"] {
+                    padding-top: 0 !important;
+                }
+
+                @media (max-width: 768px) {
+                    .session-header {
+                        position: sticky !important;
+                        top: 0 !important;  /* ← было 3.4rem, теперь 0 */
+                        z-index: 999 !important;
+                        background: rgba(15, 23, 42, 0.94) !important;
+                        backdrop-filter: blur(12px) !important;
+                        -webkit-backdrop-filter: blur(12px) !important;
+                        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25) !important;
+                    }
+                }
 
             /* =========================
             IPO Trader Dashboard
@@ -195,27 +205,19 @@ def apply_custom_css() -> None:
                 ...
             ========================= */
 
-            .st-key-buy_sell_row [data-testid="stLayoutWrapper"] > [data-testid="stElementContainer"] {
+            .st-key-buy_sell_row {
+                flex-flow: row !important;
+                gap: 8px !important;
+            }
+
+            .st-key-buy_sell_row > div[data-testid="stElementContainer"] {
                 flex: 1 1 50% !important;
                 min-width: 0 !important;
                 width: 50% !important;
             }
 
-            .st-key-buy_sell_row [data-testid="stLayoutWrapper"] > [data-testid="stElementContainer"] button {
+            .st-key-buy_sell_row > div[data-testid="stElementContainer"] button {
                 width: 100% !important;
-            }
-
-            /* ===== MOBILE: btns size ===== */
-            @media (max-width: 768px) {
-                .st-key-trade_actions button {
-                    min-height: 44px !important;
-                    font-size: 0.9rem !important;
-                }
-
-                .st-key-trade_actions .sell-disabled-note {
-                    font-size: 0.75rem !important;
-                    margin-top: -0.15rem !important;
-                }
             }
         </style>
         """,

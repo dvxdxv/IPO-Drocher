@@ -10,17 +10,28 @@ def apply_session_header_css() -> None:
     st.markdown(
         """
         <style>
+
+            header[data-testid="stHeader"] {
+                    display: none !important;
+                }
             .session-header {
-                border: 1px solid rgba(255, 255, 255, 0.16);
-                border-radius: 10px;
-                padding: 16px 18px;
-                margin-bottom: 18px;
-                position: sticky;
-                top: 0.5rem;
-                z-index: 999;
-                backdrop-filter: blur(12px);
-                -webkit-backdrop-filter: blur(12px);
-                background: rgba(15, 23, 42, 0.88);
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                z-index: 9999 !important;
+                border: none !important;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.16) !important;
+                border-radius: 0 !important;
+                padding: 16px 18px !important;
+                margin-bottom: 0 !important;
+                backdrop-filter: blur(12px) !important;
+                -webkit-backdrop-filter: blur(12px) !important;
+                background: rgba(15, 23, 42, 0.96) !important;
+            }
+
+            section[data-testid="stMain"] > div:first-child {
+                padding-top: 90px !important;
             }
 
             .session-grid {
