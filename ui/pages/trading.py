@@ -72,18 +72,32 @@ def apply_custom_css() -> None:
                 div[data-testid="stAppViewBlockContainer"] {
                     padding-top: 0 !important;
                 }
-
+/*
                 @media (max-width: 768px) {
                     .session-header {
                         position: sticky !important;
-                        top: 0 !important;  /* ← было 3.4rem, теперь 0 */
+                        top: 0 !important;
                         z-index: 999 !important;
                         background: rgba(15, 23, 42, 0.94) !important;
                         backdrop-filter: blur(12px) !important;
                         -webkit-backdrop-filter: blur(12px) !important;
                         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25) !important;
+                        margin-bottom: 0 !important;
                     }
                 }
+*/
+
+            /* =========================
+            Price Chart Container Spacing
+            ========================= */
+
+
+            @media (max-width: 768px) {
+                .st-key-price_chart_container {
+                    margin-top: 0 !important;
+                    margin-bottom: 0 !important;
+                }
+            }
 
             /* =========================
             IPO Trader Dashboard
@@ -464,7 +478,6 @@ def _render_transactions(account) -> None:
         ],
     )
 
-    st.divider()
     st.subheader("Transactions")
 
     if not trades:
@@ -533,8 +546,7 @@ def render_trading_page() -> None:
     price = market.get_current_price()
 
     render_session_header(account, clock, market)
-    st.write("")
-
+  
     render_price_chart(
         market,
         window=60,
@@ -545,10 +557,6 @@ def render_trading_page() -> None:
     metrics = render_account_metrics(account, price)
     equity = metrics["equity"]
     unrealized_pnl = metrics["unrealized_pnl"]
-
-    st.write("")
-
-    st.divider()
 
     _render_trade_panel(bus, clock, account)
 

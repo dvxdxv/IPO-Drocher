@@ -1,7 +1,6 @@
 import plotly.graph_objects as go
 import streamlit as st
 
-
 def get_recent_prices(market, window: int = 60):
     if hasattr(market, "get_recent_prices"):
         return market.get_recent_prices(window)

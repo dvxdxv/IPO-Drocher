@@ -136,20 +136,58 @@ Quantity: **{qty} shares**
             st.error("Insufficient shares")
 
     st.divider()
-    st.markdown("#### Portfolio Impact")
 
-    col_before, col_after = st.columns(2)
-
-    with col_before:
-        st.metric("Cash Before", f"${account.cash:,.2f}")
-        st.metric("Shares Before", account.shares)
-
-    with col_after:
-        st.metric("Cash After", f"${projected_cash:,.2f}")
-        st.metric("Shares After", projected_shares)
-
+    pnl_row = ""
     if side == TradeSide.SELL:
-        st.metric("Realized P&L on Trade", f"${trade_pnl:,.2f}")
+        pnl_color = "#22c55e" if trade_pnl >= 0 else "#ef4444"
+        pnl_row = f"""
+        <div class="tr-row">
+            <span class="tr-label">Realized P&L</span>
+            <span class="tr-value" style="color:{pnl_color}">${trade_pnl:,.2f}</span>
+        </div>
+        """
+
+    st.markdown(f"""
+    <style>
+    .tr-grid {{ display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; margin:8px 0; }}
+    .tr-cell {{ background:rgba(255,255,255,0.04); border-radius:8px; padding:8px 10px; }}
+    .tr-cell-label {{ font-size:0.7rem; opacity:0.6; margin-bottom:2px; }}
+    .tr-cell-value {{ font-size:1rem; font-weight:700; }}
+    .tr-row {{ display:flex; justify-content:space-between; align-items:center; padding:6px 0; }}
+    .tr-label {{ font-size:0.8rem; opacity:0.7; }}
+    .tr-value {{ font-size:0.95rem; font-weight:700; }}
+    </style>
+
+    **Portfolio Impact**
+
+    <div class="tr-grid">
+        <div class="tr-cell">
+            <div class="tr-cell-label">Cash Before</div>
+            <div class="tr-cell-value">${account.cash:,.2f}</div>
+        </div>
+        <div class="tr-cell">
+            <div class="tr-cell-label">Cash After</div>
+            <div class="tr-cell-value">${projected_cash:,.2f}</div>
+        </div>
+        <div class="tr-cell">
+            <div class="tr-cell-label">Shares Before</div>
+            <div class="tr-cell-value">{account.shares}</div>
+        </div>
+        <div class="tr-cell">
+            <div class="tr-cell-label">Shares After</div>
+            <div class="tr-cell-value">{projected_shares}</div>
+        </div>
+    </div>
+    
+    """, unsafe_allow_html=True)
+    if side == TradeSide.SELL:
+        pnl_color = "#22c55e" if trade_pnl >= 0 else "#ef4444"
+        st.markdown(f"""
+        <div class="tr-row">
+            <span class="tr-label">Realized P&L</span>
+            <span class="tr-value" style="color:{pnl_color}">${trade_pnl:,.2f}</span>
+        </div>
+        """, unsafe_allow_html=True)
 
     st.divider()
 
