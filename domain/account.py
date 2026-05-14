@@ -96,6 +96,7 @@ class Account:
         # Realized PnL calculation
         pnl = (trade.price - self._avg_price) * trade.quantity
         self._realized_pnl += pnl
+        trade.pnl = pnl
 
         self._shares -= trade.quantity
         self._cash += trade.price * trade.quantity
@@ -114,15 +115,10 @@ class Account:
         return self._cash + (self._shares * current_price)
 
     def get_win_rate(self) -> float:
-        sell_trades = [
-            t for t in self._trades_log if t.side == TradeSide.SELL
-        ]
+        sell_trades = [t for t in self._trades_log if t.side == TradeSide.SELL]
 
         if not sell_trades:
             return 0.0
 
-        # Note: This logic assumes you compare trade price against 
-        # the avg_price at the time of the trade.
-        wins = [t for t in sell_trades if (t.price - self._avg_price) > 0]
-
+        wins = [t for t in sell_trades if t.pnl > 0]
         return (len(wins) / len(sell_trades)) * 100

@@ -11,7 +11,7 @@ def get_recent_prices(market, window: int = 60):
 def render_price_chart(
     market,
     window: int = 60,
-    height: int = 220,
+    height: int = 200,
     interactive: bool = False,
 ) -> None:
     """

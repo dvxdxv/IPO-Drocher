@@ -23,6 +23,7 @@ class TradeEvent:
     price: float
     quantity: int
     timestamp: Optional[str] = None
+    pnl: float = 0.0
 
 
 @dataclass

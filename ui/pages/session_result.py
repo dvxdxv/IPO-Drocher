@@ -29,37 +29,56 @@ def render_session_result_page() -> None:
     win_rate = result.get("win_rate", 0.0)
     total_trades = result.get("total_trades", 0)
 
-    st.title("Session Result")
-    st.caption("IPO Drocher trading replay completed")
+    pnl_color = "#22c55e" if total_pnl >= 0 else "#ef4444"
+    rpnl_color = "#22c55e" if realized_pnl >= 0 else "#ef4444"
+    upnl_color = "#22c55e" if unrealized_pnl >= 0 else "#ef4444"
 
-    with st.container(border=True):
-        st.markdown(f"## Grade: `{grade}`")
+    def signed(v): return f"+${v:,.2f}" if v >= 0 else f"-${abs(v):,.2f}"
 
-        col1, col2, col3 = st.columns(3)
+    st.markdown(f"""
+<style>
+.sr-grade {{ font-size:2.8rem; font-weight:900; margin-bottom:4px; }}
+.sr-caption {{ font-size:0.9rem; opacity:0.6; margin-bottom:16px; }}
+.sr-grid {{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:12px 0; }}
+.sr-cell {{ background:rgba(255,255,255,0.04); border-radius:10px; padding:12px 16px; }}
+.sr-label {{ font-size:0.8rem; opacity:0.6; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.04em; }}
+.sr-value {{ font-size:1.3rem; font-weight:800; }}
+</style>
 
-        with col1:
-            st.metric("Final Equity", _format_money(final_equity))
+<div class="sr-grade">Grade: {grade}</div>
+<div class="sr-caption">IPO Drocher trading replay completed</div>
 
-        with col2:
-            st.metric("Total P&L", _format_signed_money(total_pnl))
-
-        with col3:
-            st.metric("ROI", f"{roi_percent:+.2f}%")
-
-        st.divider()
-
-        col4, col5, col6 = st.columns(3)
-
-        with col4:
-            st.metric("Realized P&L", _format_signed_money(realized_pnl))
-
-        with col5:
-            st.metric("Unrealized P&L", _format_signed_money(unrealized_pnl))
-
-        with col6:
-            st.metric("Win Rate", f"{win_rate:.1f}%")
-
-        st.markdown(f"**Total Trades:** {total_trades}")
+<div class="sr-grid">
+    <div class="sr-cell">
+        <div class="sr-label">Final Equity</div>
+        <div class="sr-value">${final_equity:,.2f}</div>
+    </div>
+    <div class="sr-cell">
+        <div class="sr-label">Total P&L</div>
+        <div class="sr-value" style="color:{pnl_color}">{signed(total_pnl)}</div>
+    </div>
+    <div class="sr-cell">
+        <div class="sr-label">ROI</div>
+        <div class="sr-value" style="color:{pnl_color}">{roi_percent:+.2f}%</div>
+    </div>
+    <div class="sr-cell">
+        <div class="sr-label">Win Rate</div>
+        <div class="sr-value">{win_rate:.1f}%</div>
+    </div>
+    <div class="sr-cell">
+        <div class="sr-label">Realized P&L</div>
+        <div class="sr-value" style="color:{rpnl_color}">{signed(realized_pnl)}</div>
+    </div>
+    <div class="sr-cell">
+        <div class="sr-label">Unrealized P&L</div>
+        <div class="sr-value" style="color:{upnl_color}">{signed(unrealized_pnl)}</div>
+    </div>
+    <div class="sr-cell" style="grid-column:1/-1;">
+        <div class="sr-label">Total Trades</div>
+        <div class="sr-value">{total_trades}</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
     st.write("")
 
@@ -74,7 +93,6 @@ def render_session_result_page() -> None:
         if st.button("Review Trading Screen", width="stretch"):
             st.session_state.page = "trading"
             st.rerun()
-
 
 def _reset_session_for_new_start() -> None:
     keys_to_clear = [
