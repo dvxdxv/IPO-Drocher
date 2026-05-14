@@ -195,24 +195,18 @@ def apply_custom_css() -> None:
                 ...
             ========================= */
 
-            @media (max-width: 768px) {
-                .st-key-buy_sell_row > div:first-child {
-                display: flex !important;
-                flex-direction: row !important;
-                gap: 8px !important;
-                width: 100% !important;
-            }
-
-            .st-key-buy_sell_row > div:first-child > div {
-                flex: 1 1 0 !important;
+            .st-key-buy_sell_row [data-testid="stLayoutWrapper"] > [data-testid="stElementContainer"] {
+                flex: 1 1 50% !important;
                 min-width: 0 !important;
-                max-width: 50% !important;
+                width: 50% !important;
             }
 
-            .st-key-buy_sell_row > div:first-child > div button {
+            .st-key-buy_sell_row [data-testid="stLayoutWrapper"] > [data-testid="stElementContainer"] button {
                 width: 100% !important;
             }
 
+            /* ===== MOBILE: btns size ===== */
+            @media (max-width: 768px) {
                 .st-key-trade_actions button {
                     min-height: 44px !important;
                     font-size: 0.9rem !important;
